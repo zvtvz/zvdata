@@ -3,19 +3,19 @@ cache: pip
 python:
 - '3.6'
 install:
-  - git fetch --tags --depth=500
-  - pip install 'pytest>=3.6' --force-reinstall
-  - pip install pytest-cov codecov requests
-  - pip install -r ./requirements.txt
+- git fetch --tags --depth=500
+- pip install 'pytest>=3.6' --force-reinstall
+- pip install pytest-cov codecov requests
+- pip install -r ./requirements.txt
 script:
 - pytest  tests/ --cov-report term --cov=./zvdata
 after_success:
-  - codecov
+- codecov
 deploy:
   provider: pypi
   user: foolcage
   password:
-    secure: MvVCnUZUuTYxzs8R8kWTocOqZt2MGUX/W1hdKMxKJ9G9hFOYhzjEnbsF1Sc9yHB/0S1OY49068ScbN6iCuyKK2LZy/x3o7cKJgPnQt2LEjy6Yuu9MLxT6v8hJ0MTT3YCn0N8bNv4tOz7KkxxbZ8O/b5MgIKfdjBhVHEj92hhykYzyzlmG8mF+nxU/j0IGCAdxN9+IDioMIvCgnFqQhvkDwva4YbG6Uy+8YMVHFT3I+tSZRSmYxl/IwHJS+5tinI4TxX/ewrI5EznOe0HZvhF+eez+tGenS3pKF4hqF6t4RmKQX2kkdMuPFAvuveoMnPGiaSdoEMni1JPFnZL+3R4GVJPzk4F10v6AZPd10CARXqEwP23JCKAe0WvnbSBkV4iKpkvgxqPA59UwNQ90Jn4pDcTSao1WfRliAnBWCVj7S4x6xjEoNKPvOhXP3RPIYhgEFu4Ma4Cpihkof6VVtlg8VAJKH7j1vWmms3ShdddKXMeF2365sn5Owe671okYmMYMas/v47Y2Cz/0hwpVLuklNR5OYayXMXfUMIG2pH1pEFvg7y8v7ivy1EyCKGva+M/qEnoR1VGWNGSkypJHxG+w8dbtYwf3EYTA9fk/di3ygzepV7RrKJSDf8R+NwFrSfXeoEP07LonbtGN9iIz7Lp5PoB6rv99NHihlB47n1+PtM=
+    secure: DkbAgsUR06c2QgT6s0IZu4pGkq4MJtAue27vNvOYXhD9YwmqqXsHzDMUxRvKzNYOX9Pa+GiMFbHJOeAEOvTWQDWdzniSlOiqzy31gmA25oKaS53maGUBdoBZuaEKwgyAlc2SyReZKoADB2NbNLQ3cBNgPd2BN0iDwRDyZbfFXZ5Xqp/Swhugia+1bLECHZ0PjrtSHio4RAuaQB72Aw9Luq5TCdnVn4ahqP5ByyIaAiU7E0KzifDaZBzRtVWiZ6egHspXQDvQVdGzZI5vgnfaDMAQzWBliP/+WhxerEr0wKY7mcX//v3MvnfyzrqdbKeg/AbWjQ3bu1hhTXgIJyi3S1JXvjPq+0UvvJhjLau4zweuUVz66HBmYFkj/VugnRbA/V5R0AxtNhOBuiG+ZzUKUta+ICD2jDt/uB6eHWVJxu0B107M85GLtVK9KK8x78+KNOQKiINRC0fyBUD2Skku7kLv+wU+x8kFsvx22hbluk10Rz3q6iC7yIXMO07M+PQ1tLQCSNvqpQWdkntNMKjKPT6xw/vhJZIXX8MijKQ/zoRQaE/fPp2IkQTT1IXuOe/MIz3ixp0a1FRxYxixhYVJwJwaRKrb6gErlc6Az4pauiHPHwUjzTTXiySqDiHCV6CX6rG6ohVvi4ZgQV4FFI1BMeHd21fPsEn8C8Im3k6EdPM=
   on:
     tags: true
 notifications:
