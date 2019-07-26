@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import io
+import os
 
 import pandas as pd
 import requests
@@ -13,7 +14,8 @@ from zvdata.recorder import Recorder
 from zvdata.utils.time_utils import to_pd_timestamp
 
 # init the context at first
-init_context(data_path='datasample')
+DATA_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'datasample'))
+init_context(data_path=DATA_PATH)
 
 # define the db
 MetaBase = declarative_base()
