@@ -79,7 +79,7 @@ class ChinaStockListSpider(Recorder):
             init_entities(df, provider=self.provider)
 
 
-ChinaStockListSpider().run()
+# ChinaStockListSpider().run()
 
 
 def test_get_entities():
