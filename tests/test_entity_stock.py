@@ -20,9 +20,11 @@ init_context(data_path=DATA_PATH, domain_module='tests.test_entity_stock')
 # define the db
 MetaBase = declarative_base()
 
+api_tmp_path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+
 
 # define the schema
-@register_api(provider='sina')
+@register_api(provider='sina', api_dir=api_tmp_path)
 @register_schema(providers=['eastmoney', 'sina'], db_name='meta', schema_base=MetaBase, entity_type='stock')
 class Stock(MetaBase, EntityMixin):
     __tablename__ = 'stocks'
@@ -109,8 +111,8 @@ def test_get_data():
 
 
 def test_generate_api():
-    generate_api('.', '.')
+    generate_api(api_tmp_path, api_tmp_path)
     exec('from tests.api import get_stocks')
-    get_stocks1=eval('get_stocks')
+    get_stocks1 = eval('get_stocks')
     df = get_stocks1(limit=10)
     assert len(df) == 10
