@@ -159,6 +159,22 @@ def generate_api(api_path, tmp_api_dir):
             os.remove(api_file)
 
 
+def register_entity(entity_type: str = None):
+    def register(cls):
+        # register the entity
+        if issubclass(cls, EntityMixin):
+            entity_type_ = entity_type
+            if not entity_type:
+                entity_type_ = cls.__name__.lower()
+
+            if entity_type_ not in global_entity_types:
+                global_entity_types.append(entity_type_)
+            entity_type_map_schema[entity_type_] = cls
+        return cls
+
+    return register
+
+
 def register_schema(providers: List[str],
                     db_name: str,
                     schema_base: DeclarativeMeta,
