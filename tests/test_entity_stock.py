@@ -9,19 +9,20 @@ from sqlalchemy.ext.declarative import declarative_base
 
 from tests.consts import DEFAULT_SH_HEADER, DEFAULT_SZ_HEADER
 from zvdata.api import init_entities, get_entities, get_data
-from zvdata.domain import EntityMixin, register_schema, init_context
+from zvdata.domain import EntityMixin, register_schema, init_context, register_api, generate_api
 from zvdata.recorder import Recorder
 from zvdata.utils.time_utils import to_pd_timestamp
 
 # init the context at first
 DATA_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'datasample'))
-init_context(data_path=DATA_PATH)
+init_context(data_path=DATA_PATH, domain_module='tests.test_entity_stock')
 
 # define the db
 MetaBase = declarative_base()
 
 
 # define the schema
+@register_api(provider='sina')
 @register_schema(providers=['eastmoney', 'sina'], db_name='meta', schema_base=MetaBase, entity_type='stock')
 class Stock(MetaBase, EntityMixin):
     __tablename__ = 'stocks'
@@ -104,4 +105,12 @@ def test_get_data():
     print(f'from start to 2019 list count:{len(df.index)}')
 
     df = get_data(data_schema=Stock, end_timestamp='2018-12-31', limit=10, provider='sina')
+    assert len(df) == 10
+
+
+def test_generate_api():
+    generate_api('.', '.')
+    exec('from tests.api import get_stocks')
+    get_stocks1=eval('get_stocks')
+    df = get_stocks1(limit=10)
     assert len(df) == 10

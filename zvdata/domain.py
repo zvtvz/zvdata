@@ -37,8 +37,10 @@ entity_type_map_schema = {
 context = {}
 
 
-def init_context(data_path):
+def init_context(data_path, domain_module):
     context['data_path'] = data_path
+    context['domain_module'] = domain_module
+
     if not os.path.exists(data_path):
         os.makedirs(data_path)
 
@@ -87,6 +89,70 @@ def get_db_session_factory(provider: str,
         session = sessionmaker()
         _db_session_map[session_key] = session
     return session
+
+
+api_header = '''
+# -*- coding: utf-8 -*-
+from typing import List, Union
+
+import pandas as pd
+from sqlalchemy.orm import Session
+from zvdata.api import get_data
+from zvdata.structs import IntervalLevel
+'''
+api_template = '''
+{}
+
+def get_{}(
+        entity_ids: List[str] = None,
+        entity_id: str = None,
+        codes: List[str] = None,
+        level: Union[IntervalLevel, str] = None,
+        provider: str = \'{}\',
+        columns: List = None,
+        return_type: str = 'df',
+        start_timestamp: Union[pd.Timestamp, str] = None,
+        end_timestamp: Union[pd.Timestamp, str] = None,
+        filters: List = None,
+        session: Session = None,
+        order=None,
+        limit: int = None,
+        index: str = 'timestamp',
+        index_is_time: bool = True,
+        time_field: str = 'timestamp'):
+    return get_data(data_schema={}, entity_ids=entity_ids, entity_id=entity_id, codes=codes, level=level,
+                    provider=provider,
+                    columns=columns, return_type=return_type, start_timestamp=start_timestamp,
+                    end_timestamp=end_timestamp, filters=filters, session=session, order=order, limit=limit,
+                    index=index, index_is_time=index_is_time, time_field=time_field)
+'''
+
+
+def register_api(provider, api_dir='.'):
+    def generate(cls):
+        import_str = 'from {} import {}'.format(context['domain_module'], cls.__name__)
+        the_func = api_template.format(import_str, cls.__tablename__, provider, cls.__name__)
+
+        with open(os.path.join(api_dir, f'{cls.__tablename__}.api'), "w") as myfile:
+            myfile.write(the_func)
+            myfile.write('\n')
+
+            return cls
+
+    return generate
+
+
+def generate_api(api_path, tmp_api_dir):
+    from os import listdir
+    from os.path import isfile, join
+    api_files = [f for f in listdir(tmp_api_dir) if isfile(join(tmp_api_dir, f)) and f.endswith('.api')]
+    with open(os.path.join(api_path, 'api.py'), 'w') as outfile:
+        outfile.write(api_header)
+
+        for api_file in api_files:
+            with open(api_file) as infile:
+                outfile.write(infile.read())
+            os.remove(api_file)
 
 
 def register_schema(providers: List[str],
