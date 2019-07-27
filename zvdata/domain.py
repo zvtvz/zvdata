@@ -145,12 +145,14 @@ def register_api(provider, api_dir='.'):
 def generate_api(api_path, tmp_api_dir):
     from os import listdir
     from os.path import isfile, join
-    api_files = [f for f in listdir(tmp_api_dir) if isfile(join(tmp_api_dir, f)) and f.endswith('.api')]
+    api_files = [os.path.join(tmp_api_dir, f) for f in listdir(tmp_api_dir) if
+                 isfile(join(tmp_api_dir, f)) and f.endswith('.api')]
     with open(os.path.join(api_path, 'api.py'), 'w') as outfile:
         outfile.write(api_header)
 
         for api_file in api_files:
-            with open(os.path.join(tmp_api_dir, api_file)) as infile:
+            with open(api_file) as infile:
+                print()
                 outfile.write(infile.read())
             os.remove(api_file)
 
