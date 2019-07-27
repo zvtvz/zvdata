@@ -222,6 +222,9 @@ def register_schema(providers: List[str],
             session_fac = get_db_session_factory(provider, db_name=db_name)
             session_fac.configure(bind=engine)
 
+        for provider in providers:
+            engine = get_db_engine(provider, db_name=db_name)
+
             # create index for 'timestamp','entity_id','code','report_period','updated_timestamp
             for table_name, table in iter(schema_base.metadata.tables.items()):
                 index_list = []
