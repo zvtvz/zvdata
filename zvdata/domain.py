@@ -150,7 +150,7 @@ def generate_api(api_path, tmp_api_dir):
         outfile.write(api_header)
 
         for api_file in api_files:
-            with open(api_file) as infile:
+            with open(os.path.join(tmp_api_dir, api_file)) as infile:
                 outfile.write(infile.read())
             os.remove(api_file)
 
