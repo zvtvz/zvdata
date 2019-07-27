@@ -37,9 +37,10 @@ entity_type_map_schema = {
 context = {}
 
 
-def init_context(data_path, domain_module):
+def init_context(data_path, domain_module, register_api=False):
     context['data_path'] = data_path
     context['domain_module'] = domain_module
+    context['register_api'] = register_api
 
     if not os.path.exists(data_path):
         os.makedirs(data_path)
@@ -130,14 +131,15 @@ def get_{}(
 
 def register_api(provider, api_dir='.'):
     def generate(cls):
-        import_str = 'from {} import {}'.format(context['domain_module'], cls.__name__)
-        the_func = api_template.format(import_str, cls.__tablename__, provider, cls.__name__)
+        if context['register_api']:
+            import_str = 'from {} import {}'.format(context['domain_module'], cls.__name__)
+            the_func = api_template.format(import_str, cls.__tablename__, provider, cls.__name__)
 
-        with open(os.path.join(api_dir, f'{cls.__tablename__}.api'), "w") as myfile:
-            myfile.write(the_func)
-            myfile.write('\n')
+            with open(os.path.join(api_dir, f'{cls.__tablename__}.api'), "w") as myfile:
+                myfile.write(the_func)
+                myfile.write('\n')
 
-            return cls
+        return cls
 
     return generate
 

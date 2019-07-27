@@ -15,7 +15,7 @@ from zvdata.utils.time_utils import to_pd_timestamp
 
 # init the context at first
 DATA_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'datasample'))
-init_context(data_path=DATA_PATH, domain_module='tests.test_entity_stock')
+init_context(data_path=DATA_PATH, domain_module='tests.test_entity_stock', register_api=True)
 
 # define the db
 MetaBase = declarative_base()
