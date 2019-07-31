@@ -496,8 +496,7 @@ class FixedCycleDataRecorder(TimeSeriesDataRecorder):
             # FIXME:remove this logic
             # FIXME:should remove unfinished data when recording,always set it to False now
             if is_same_date(current_timestamp, last_timestamp) and self.contain_unfinished_data:
-                close_hour, close_minute = get_close_time(entity.id)
-                if current_timestamp.hour >= close_hour and current_timestamp.minute >= close_minute + 2:
+                if current_timestamp.hour >= self.close_hour and current_timestamp.minute >= self.close_minute + 2:
                     # after the closing time of the day,we think the last data is finished
                     saving_datas = domain_list
                 else:
