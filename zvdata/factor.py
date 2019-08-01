@@ -7,6 +7,7 @@ import plotly.graph_objs as go
 
 from zvdata.chart import Chart
 from zvdata.reader import DataReader, DataListener
+from zvdata.sedes import Jsonable, UiComposable
 from zvdata.structs import IntervalLevel
 from zvdata.utils.pd_utils import index_df_with_category_time
 
@@ -17,7 +18,22 @@ class FactorType(enum.Enum):
     state = 'state'
 
 
-class Factor(DataReader, DataListener):
+factor_registry = {}
+
+
+def register_class(target_class):
+    if target_class.__name__ not in ('Factor', 'FilterFactor', 'ScoreFactor', 'StateFactor'):
+        factor_registry[target_class.__name__] = target_class
+
+
+class Meta(type):
+    def __new__(meta, name, bases, class_dict):
+        cls = type.__new__(meta, name, bases, class_dict)
+        register_class(cls)
+        return cls
+
+
+class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
     factor_type: FactorType = None
 
     def __init__(self,
@@ -42,7 +58,6 @@ class Factor(DataReader, DataListener):
                  keep_all_timestamp: bool = False,
                  fill_method: str = 'ffill',
                  effective_number: int = 10) -> None:
-
         super().__init__(data_schema, entity_ids, entity_type, exchanges, codes, the_timestamp, start_timestamp,
                          end_timestamp,
                          columns, filters, limit, provider, level, real_time, refresh_interval, category_field,

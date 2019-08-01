@@ -11,7 +11,6 @@ from zvdata.chart import Chart
 from zvdata.structs import IntervalLevel
 from zvdata.utils.pd_utils import index_df_with_category_time, df_is_not_null
 from zvdata.utils.time_utils import to_pd_timestamp, to_time_str, now_pd_timestamp
-from zvt.api.common import get_exchange
 
 
 class DataListener(object):
@@ -88,6 +87,7 @@ class DataReader(object):
         """
         self.data_schema = data_schema
 
+        self.the_timestamp = the_timestamp
         if the_timestamp:
             self.start_timestamp = the_timestamp
             self.end_timestamp = the_timestamp
@@ -112,22 +112,6 @@ class DataReader(object):
         self.category_field = category_field
         self.time_field = time_field
         self.trip_timestamp = trip_timestamp
-
-        if not self.entity_ids:
-            # if not (self.entity_type and self.exchanges):
-            #     raise Exception(
-            #         'you should set (entity_type,exchanges) or (entity_type,exchanges) or (entity_ids) for the reader')
-
-            self.entity_ids = []
-            if self.entity_type and self.exchanges and self.codes:
-                # for china stock,just need codes
-                if self.entity_type == 'stock':
-                    for code in self.codes:
-                        self.entity_ids.append('{}_{}_{}'.format(self.entity_type, get_exchange(code), code))
-                else:
-                    for exchange in self.exchanges:
-                        for code in self.codes:
-                            self.entity_ids.append('{}_{}_{}'.format(self.entity_type, exchange, code))
 
         self.category_column = eval('self.data_schema.{}'.format(self.category_field))
         self.columns = columns
