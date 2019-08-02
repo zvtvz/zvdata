@@ -7,6 +7,7 @@ import dash_core_components as dcc
 import dash_daq as daq
 import dash_html_components as html
 import pandas as pd
+from dash.dependencies import State
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
@@ -45,7 +46,7 @@ class Jsonable(object):
 
 class UiComposable(object):
     @classmethod
-    def ui_inputs(cls):
+    def ui_inputs_states(cls):
         """
         construct ui input from the class constructor arguments spec
 
@@ -72,41 +73,54 @@ class UiComposable(object):
         return data
 
     @classmethod
-    def arg_annotation_to_input(cls, arg, annotation, default):
-        text = default
-
-        if annotation is bool:
-            return daq.BooleanSwitch(id=arg, on=text)
-
-        if 'timestamp' in arg:
-            return dcc.DatePickerSingle(id=arg, date=text)
-
-        if 'level' == arg:
-            return dcc.Dropdown(id=arg, options=[{'label': item.value, 'value': item.value} for item in IntervalLevel],
-                                value=text)
-
-        if 'filters' == arg and text:
-            filters = [str(filter) for filter in text]
-            text = ','.join(filters)
-
-        if 'columns' == arg and text:
-            columns = [column.name for column in text]
-            text = ','.join(columns)
-
-        if isinstance(text, list):
-            text = ','.join(text)
-        if isinstance(text, dict):
-            text = json.dumps(text)
-
-        return dcc.Input(id=arg, type='text', value=text)
-
-    @classmethod
     def html_label_input_list(cls, args, annotations, defaults, meta):
         divs = []
+        states = []
         for i, arg in enumerate(args):
             left = html.Label(arg)
-            right = cls.arg_annotation_to_input(arg=arg, annotation=annotations.get(arg), default=defaults[i])
+
+            annotation = annotations.get(arg)
+            text = defaults[i]
+
+            right = None
+            state = None
+
+            if annotation is bool:
+                right = daq.BooleanSwitch(id=arg, on=text)
+                state = State(arg, 'on')
+
+            if 'timestamp' in arg:
+                right = dcc.DatePickerSingle(id=arg, date=text)
+                state = State(arg, 'date')
+
+            if 'level' == arg:
+                right = dcc.Dropdown(id=arg,
+                                     options=[{'label': item.value, 'value': item.value} for item in IntervalLevel],
+                                     value=text)
+
+            if 'filters' == arg and text:
+                filters = [str(filter) for filter in text]
+                text = ','.join(filters)
+
+            if 'columns' == arg and text:
+                columns = [column.name for column in text]
+                text = ','.join(columns)
+
+            if isinstance(text, list):
+                if isinstance(text[0], str):
+                    text = ','.join(text)
+                else:
+                    text = json.dumps(text)
+
+            if isinstance(text, dict):
+                text = json.dumps(text)
+
+            if right is None:
+                right = dcc.Input(id=arg, type='text', value=text)
+            if state is None:
+                state = State(arg, 'value')
 
             divs += [left, right]
+            states.append(state)
 
-        return divs
+        return divs, states
