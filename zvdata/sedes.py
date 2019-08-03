@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import inspect
 import json
+import typing
 from enum import Enum
 
 import dash_core_components as dcc
@@ -46,7 +47,7 @@ class Jsonable(object):
 
 class UiComposable(object):
     @classmethod
-    def ui_inputs_states(cls):
+    def to_html_inputs(cls):
         """
         construct ui input from the class constructor arguments spec
 
@@ -56,24 +57,6 @@ class UiComposable(object):
         annotations = spec.annotations
         defaults = [cls.marshal_data_for_ui(default) for default in spec.defaults]
 
-        return cls.html_label_input_list(args=args, annotations=annotations, defaults=defaults, meta=cls.ui_meta())
-
-    @classmethod
-    def ui_meta(cls):
-        return {}
-
-    @classmethod
-    def marshal_data_for_ui(cls, data):
-        if isinstance(data, Enum):
-            return data.value
-
-        if isinstance(data, pd.Timestamp):
-            return to_time_str(data)
-
-        return data
-
-    @classmethod
-    def html_label_input_list(cls, args, annotations, defaults, meta):
         divs = []
         states = []
         for i, arg in enumerate(args):
@@ -85,14 +68,7 @@ class UiComposable(object):
             right = None
             state = None
 
-            if annotation is bool:
-                right = daq.BooleanSwitch(id=arg, on=text)
-                state = State(arg, 'on')
-
-            if 'timestamp' in arg:
-                right = dcc.DatePickerSingle(id=arg, date=text)
-                state = State(arg, 'date')
-
+            # use arg
             if 'level' == arg:
                 right = dcc.Dropdown(id=arg,
                                      options=[{'label': item.value, 'value': item.value} for item in IntervalLevel],
@@ -105,6 +81,16 @@ class UiComposable(object):
             if 'columns' == arg and text:
                 columns = [column.name for column in text]
                 text = ','.join(columns)
+
+            # use annotation to determine input
+            if annotation is bool:
+                right = daq.BooleanSwitch(id=arg, on=text)
+                state = State(arg, 'on')
+
+            if type(annotation) == typing.Union:
+                if pd.Timestamp in annotation.__args__:
+                    right = dcc.DatePickerSingle(id=arg, date=text)
+                    state = State(arg, 'date')
 
             if isinstance(text, list):
                 if isinstance(text[0], str):
@@ -124,3 +110,40 @@ class UiComposable(object):
             states.append(state)
 
         return divs, states
+
+    @classmethod
+    def ui_meta(cls):
+        return {}
+
+    @classmethod
+    def marshal_data_for_ui(cls, data):
+        if isinstance(data, Enum):
+            return data.value
+
+        if isinstance(data, pd.Timestamp):
+            return to_time_str(data)
+
+        return data
+
+    @classmethod
+    def unmarshal_data_for_arg(cls, data):
+        return data
+
+    @classmethod
+    def from_html_inputs(cls, *inputs):
+        arg_values = []
+
+        spec = inspect.getfullargspec(cls)
+        args = [arg for arg in spec.args if arg != 'self']
+        annotations = spec.annotations
+
+        for i, input in enumerate(inputs):
+            result = input
+
+            annotation = annotations.get(args[i])
+
+            if annotation == dict or issubclass(annotation, list):
+                result = json.loads(input)
+            arg_values.append(result)
+
+        return arg_values
