@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import inspect
 import json
-import typing
 from enum import Enum
 
 import dash_core_components as dcc
@@ -60,7 +59,7 @@ class UiComposable(object):
         divs = []
         states = []
         for i, arg in enumerate(args):
-            left = html.Label(arg)
+            left = html.Label(arg, style={'display': 'inline-block', 'width': '100px'})
 
             annotation = annotations.get(arg)
             text = defaults[i]
@@ -68,29 +67,25 @@ class UiComposable(object):
             right = None
             state = None
 
-            # use arg
-            if 'level' == arg:
+            if annotation is bool:
+                right = daq.BooleanSwitch(id=arg, on=text)
+                state = State(arg, 'on')
+            elif 'level' == arg:
                 right = dcc.Dropdown(id=arg,
                                      options=[{'label': item.value, 'value': item.value} for item in IntervalLevel],
                                      value=text)
 
-            if 'filters' == arg and text:
+            elif 'filters' == arg and text:
                 filters = [str(filter) for filter in text]
                 text = ','.join(filters)
 
-            if 'columns' == arg and text:
+            elif 'columns' == arg and text:
                 columns = [column.name for column in text]
                 text = ','.join(columns)
 
-            # use annotation to determine input
-            if annotation is bool:
-                right = daq.BooleanSwitch(id=arg, on=text)
-                state = State(arg, 'on')
-
-            if type(annotation) == typing.Union:
-                if pd.Timestamp in annotation.__args__:
-                    right = dcc.DatePickerSingle(id=arg, date=text)
-                    state = State(arg, 'date')
+            elif 'timestamp' in arg:
+                right = dcc.DatePickerSingle(id=arg, date=text)
+                state = State(arg, 'date')
 
             if isinstance(text, list):
                 if isinstance(text[0], str):
@@ -106,7 +101,8 @@ class UiComposable(object):
             if state is None:
                 state = State(arg, 'value')
 
-            divs += [left, right]
+            right.style = {'display': 'inline-block'}
+            divs.append(html.Div([left, right], style={'margin-left': '120px'}))
             states.append(state)
 
         return divs, states
