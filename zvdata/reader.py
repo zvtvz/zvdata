@@ -120,6 +120,9 @@ class DataReader(object):
 
         # we store the data in a multiple index(category_column,timestamp) Dataframe
         if self.columns:
+            if type(self.columns[0]) == str:
+                self.columns = [eval('self.data_schema.{}'.format(col)) for col in self.columns]
+
             time_col = eval('self.data_schema.{}'.format(self.time_field))
             self.columns = list(set(columns) | {self.category_column, time_col})
 

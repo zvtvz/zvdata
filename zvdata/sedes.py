@@ -30,7 +30,7 @@ def table_name_to_domain(table_name: str):
     return eval(domain_name)
 
 
-class FiltersEncoder(json.JSONEncoder):
+class CustomJsonEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, BinaryExpression):
             sql_str = str(obj)
@@ -45,22 +45,33 @@ class FiltersEncoder(json.JSONEncoder):
                 filter_str = '{}.{} {} "{}"'.format(domain.__name__, col, expression, value)
             else:
                 filter_str = '{}.{} {} {}'.format(domain.__name__, col, expression, value)
-            return {'filter': filter_str}
+            return {'_type': 'filter',
+                    'data': filter_str}
+
         return super().default(obj)
 
 
-class FiltersDecoder(json.JSONDecoder):
+class CustomJsonDecoder(json.JSONDecoder):
     def __init__(self, *args, **kwargs):
         json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
 
     def object_hook(self, obj):
-        filter_str = obj.get('filter')
+        if '_type' not in obj:
+            return obj
 
-        left, _, _ = filter_str.split()
-        domain_name, col = left.split('.')
+        _type = obj.get('_type')
+        data = obj.get('data')
 
-        exec(f'from {context["domain_module"]} import {domain_name}')
-        return eval(filter_str)
+        if _type == 'filter':
+            filter_str = data
+
+            left, _, _ = filter_str.split()
+            domain_name, col = left.split('.')
+
+            exec(f'from {context["domain_module"]} import {domain_name}')
+            return eval(filter_str)
+
+        return obj
 
 
 class Jsonable(object):
@@ -115,9 +126,6 @@ class UiComposable(object):
             annotation = annotations.get(arg)
             default = defaults[i]
 
-            right = None
-            state = None
-
             if annotation is bool:
                 right = daq.BooleanSwitch(id=arg, on=default)
                 state = State(arg, 'value')
@@ -132,8 +140,7 @@ class UiComposable(object):
                 state = State(arg, 'date')
             else:
                 if 'filters' == arg and default:
-                    filters = [str(filter) for filter in default]
-                    default = ','.join(filters)
+                    default = json.dumps(default, cls=CustomJsonDecoder)
 
                 if 'columns' == arg and default:
                     columns = [column.name for column in default]
@@ -180,10 +187,13 @@ class UiComposable(object):
         for i, input in enumerate(inputs):
             result = input
 
-            annotation = annotations.get(args[i])
+            arg = args[i]
+            if input:
+                try:
+                    result = json.loads(input, cls=CustomJsonDecoder)
+                except:
+                    pass
 
-            if annotation == dict or issubclass(annotation, list):
-                result = json.loads(input)
             arg_values.append(result)
 
         return arg_values
