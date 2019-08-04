@@ -64,7 +64,8 @@ class DataReader(object):
                  refresh_interval: int = 10,
                  category_field: str = 'entity_id',
                  time_field: str = 'timestamp',
-                 trip_timestamp=True) -> None:
+                 trip_timestamp: bool = True,
+                 auto_load: bool = True) -> None:
         """
 
         Parameters
@@ -112,6 +113,7 @@ class DataReader(object):
         self.category_field = category_field
         self.time_field = time_field
         self.trip_timestamp = trip_timestamp
+        self.auto_load = auto_load
 
         self.category_column = eval('self.data_schema.{}'.format(self.category_field))
         self.columns = columns
@@ -125,7 +127,8 @@ class DataReader(object):
 
         self.data_df: pd.DataFrame = None
 
-        self.load_data()
+        if self.auto_load:
+            self.load_data()
 
     def load_data(self):
         if self.entity_ids:

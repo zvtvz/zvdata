@@ -7,6 +7,7 @@ import dash_core_components as dcc
 import dash_daq as daq
 import dash_html_components as html
 import pandas as pd
+import simplejson
 from dash.dependencies import State
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -16,6 +17,9 @@ from zvdata.utils.time_utils import to_time_str
 
 
 class Jsonable(object):
+    def id(self):
+        return hash(simplejson.dumps(self.__json__()))
+
     def __json__(self):
         result = {}
 
@@ -69,7 +73,6 @@ class UiComposable(object):
 
             if annotation is bool:
                 right = daq.BooleanSwitch(id=arg, on=text)
-                state = State(arg, 'on')
             elif 'level' == arg:
                 right = dcc.Dropdown(id=arg,
                                      options=[{'label': item.value, 'value': item.value} for item in IntervalLevel],

@@ -54,14 +54,15 @@ class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
                  refresh_interval: int = 10,
                  category_field: str = 'entity_id',
                  time_field: str = 'timestamp',
+                 trip_timestamp: bool = True,
+                 auto_load: bool = False,
                  # child added arguments
                  keep_all_timestamp: bool = False,
                  fill_method: str = 'ffill',
                  effective_number: int = 10) -> None:
         super().__init__(data_schema, entity_ids, entity_type, exchanges, codes, the_timestamp, start_timestamp,
-                         end_timestamp,
-                         columns, filters, limit, provider, level, real_time, refresh_interval, category_field,
-                         time_field)
+                         end_timestamp, columns, filters, limit, provider, level, real_time, refresh_interval,
+                         category_field, time_field, trip_timestamp, auto_load)
 
         self.factor_name = type(self).__name__.lower()
 
