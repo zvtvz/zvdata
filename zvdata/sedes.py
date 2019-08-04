@@ -11,9 +11,56 @@ import simplejson
 from dash.dependencies import State
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm.attributes import InstrumentedAttribute
+from sqlalchemy.sql.elements import BinaryExpression
 
+from zvdata.domain import context
 from zvdata.structs import IntervalLevel
 from zvdata.utils.time_utils import to_time_str
+
+
+def table_name_to_domain(table_name: str):
+    parts = table_name.split('_')
+    domain_name = ''
+    for part in parts:
+        if part[0].isdigit():
+            domain_name = domain_name + part.upper()
+        else:
+            domain_name = domain_name + part.capitalize()
+    exec(f'from {context["domain_module"]} import {domain_name}')
+    return eval(domain_name)
+
+
+class FiltersEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, BinaryExpression):
+            sql_str = str(obj)
+            left, expression, _ = sql_str.split()
+            table_name, col = left.split('.')
+            value = obj.right.value
+            domain = table_name_to_domain(table_name)
+
+            if expression == '=':
+                expression = '=='
+            if isinstance(value, str):
+                filter_str = '{}.{} {} "{}"'.format(domain.__name__, col, expression, value)
+            else:
+                filter_str = '{}.{} {} {}'.format(domain.__name__, col, expression, value)
+            return {'filter': filter_str}
+        return super().default(obj)
+
+
+class FiltersDecoder(json.JSONDecoder):
+    def __init__(self, *args, **kwargs):
+        json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
+
+    def object_hook(self, obj):
+        filter_str = obj.get('filter')
+
+        left, _, _ = filter_str.split()
+        domain_name, col = left.split('.')
+
+        exec(f'from {context["domain_module"]} import {domain_name}')
+        return eval(filter_str)
 
 
 class Jsonable(object):
@@ -66,42 +113,36 @@ class UiComposable(object):
             left = html.Label(arg, style={'display': 'inline-block', 'width': '100px'})
 
             annotation = annotations.get(arg)
-            text = defaults[i]
+            default = defaults[i]
 
             right = None
             state = None
 
             if annotation is bool:
-                right = daq.BooleanSwitch(id=arg, on=text)
+                right = daq.BooleanSwitch(id=arg, on=default)
+                state = State(arg, 'value')
             elif 'level' == arg:
                 right = dcc.Dropdown(id=arg,
                                      options=[{'label': item.value, 'value': item.value} for item in IntervalLevel],
-                                     value=text)
-
-            elif 'filters' == arg and text:
-                filters = [str(filter) for filter in text]
-                text = ','.join(filters)
-
-            elif 'columns' == arg and text:
-                columns = [column.name for column in text]
-                text = ','.join(columns)
+                                     value=default)
+                state = State(arg, 'value')
 
             elif 'timestamp' in arg:
-                right = dcc.DatePickerSingle(id=arg, date=text)
+                right = dcc.DatePickerSingle(id=arg, date=default)
                 state = State(arg, 'date')
+            else:
+                if 'filters' == arg and default:
+                    filters = [str(filter) for filter in default]
+                    default = ','.join(filters)
 
-            if isinstance(text, list):
-                if isinstance(text[0], str):
-                    text = ','.join(text)
-                else:
-                    text = json.dumps(text)
+                if 'columns' == arg and default:
+                    columns = [column.name for column in default]
+                    default = ','.join(columns)
 
-            if isinstance(text, dict):
-                text = json.dumps(text)
+                if isinstance(default, list) or isinstance(default, dict):
+                    default = json.dumps(default)
 
-            if right is None:
-                right = dcc.Input(id=arg, type='text', value=text)
-            if state is None:
+                right = dcc.Input(id=arg, type='text', value=default)
                 state = State(arg, 'value')
 
             right.style = {'display': 'inline-block'}
