@@ -3,9 +3,9 @@ import logging
 import time
 from typing import List, Union
 
+import dash_table
 import pandas as pd
 import plotly.graph_objs as go
-
 from zvdata.api import get_data
 from zvdata.chart import Chart
 from zvdata.structs import IntervalLevel
@@ -120,11 +120,14 @@ class DataReader(object):
 
         # we store the data in a multiple index(category_column,timestamp) Dataframe
         if self.columns:
-            if type(self.columns[0]) == str:
-                self.columns = [eval('self.data_schema.{}'.format(col)) for col in self.columns]
+            # support str
+            if type(columns[0]) == str:
+                self.columns = []
+                for col in columns:
+                    self.columns.append(eval('data_schema.{}'.format(col)))
 
             time_col = eval('self.data_schema.{}'.format(self.time_field))
-            self.columns = list(set(columns) | {self.category_column, time_col})
+            self.columns = list(set(self.columns) | {self.category_column, time_col})
 
         self.data_listeners: List[DataListener] = []
 
@@ -267,6 +270,24 @@ class DataReader(object):
              title=None,
              keep_ui_state=True,
              annotation_df=None):
+        if figures == dash_table.DataTable:
+            return dash_table.DataTable(
+                columns=[
+                    {'name': i, 'id': i} for i in self.data_df.columns
+                    # omit the id column
+                    if i != 'id'
+                ],
+                data=self.data_df.to_dict('records'),
+                filter_action="native",
+                sort_action="native",
+                sort_mode='multi',
+                row_selectable='multi',
+                selected_rows=[],
+                page_action='native',
+                page_current=0,
+                page_size=500,
+            )
+
         chart = Chart(category_field=self.category_field, figures=figures, modes=modes, value_fields=value_fields,
                       render=render, file_name=file_name,
                       width=width, height=height, title=title, keep_ui_state=keep_ui_state)

@@ -4,7 +4,6 @@ from typing import List, Union
 import pandas as pd
 from sqlalchemy import func, exists, and_
 from sqlalchemy.orm import Query, Session
-
 from zvdata.domain import get_db_name, get_db_session, get_db_engine, entity_type_map_schema, global_providers
 from zvdata.structs import IntervalLevel
 from zvdata.utils.pd_utils import df_is_not_null, index_df
@@ -73,6 +72,13 @@ def get_data(data_schema,
         time_col = eval('data_schema.{}'.format(time_field))
 
         if columns:
+            # support str
+            if type(columns[0]) == str:
+                columns_ = []
+                for col in columns:
+                    columns_.append(eval('data_schema.{}'.format(col)))
+                columns = columns_
+
             if time_col not in columns:
                 columns.append(time_col)
             query = session.query(*columns)

@@ -3,7 +3,7 @@ import logging
 import os
 from typing import List
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, schema
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import sessionmaker, Session
@@ -27,6 +27,10 @@ provider_map_dbnames = {
 
 # db_name -> [declarative_base1,declarative_base2...]
 dbname_map_base = {
+}
+
+# db_name -> [declarative_meta1,declarative_meta2...]
+dbname_map_schemas = {
 }
 
 # entity_type -> schema
@@ -90,6 +94,27 @@ def get_db_session_factory(provider: str,
         session = sessionmaker()
         _db_session_map[session_key] = session
     return session
+
+
+def get_schemas(provider):
+    schemas = []
+    for provider1, dbs in provider_map_dbnames.items():
+        if provider == provider1:
+            for dbname in dbs:
+                schemas1 = dbname_map_schemas.get(dbname)
+                if schemas1:
+                    schemas += schemas1
+    return schemas
+
+
+def get_schema_by_name(name):
+    for schema in global_schemas:
+        if schema.__name__ == name:
+            return schema
+
+
+def get_schema_columns(schema):
+    return schema.__table__.columns.keys()
 
 
 api_header = '''
@@ -193,10 +218,16 @@ def register_schema(providers: List[str],
     :return:
     :rtype:
     """
+    schemas = []
     for item in schema_base._decl_class_registry.items():
         cls = item[1]
-        if issubclass(cls, schema_base):
+        if type(cls) == DeclarativeMeta:
+            if dbname_map_schemas.get(db_name):
+                schemas = dbname_map_schemas[db_name]
             global_schemas.append(cls)
+            schemas.append(cls)
+
+    dbname_map_schemas[db_name] = schemas
 
     def register(cls):
         for provider in providers:
