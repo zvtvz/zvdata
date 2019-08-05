@@ -6,6 +6,7 @@ from typing import List, Union
 import dash_table
 import pandas as pd
 import plotly.graph_objs as go
+
 from zvdata.api import get_data
 from zvdata.chart import Chart
 from zvdata.structs import IntervalLevel
@@ -271,6 +272,7 @@ class DataReader(object):
              keep_ui_state=True,
              annotation_df=None):
         if figures == dash_table.DataTable:
+            self.data_df.reset_index(inplace=True)
             return dash_table.DataTable(
                 columns=[
                     {'name': i, 'id': i} for i in self.data_df.columns
