@@ -4,7 +4,6 @@ import os
 from typing import List
 
 from sqlalchemy import create_engine
-from sqlalchemy import schema
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import sessionmaker, Session
@@ -20,6 +19,7 @@ _db_session_map = {}
 
 global_providers = []
 global_entity_types = []
+global_schemas = []
 
 # provider -> [db_name1,db_name2...]
 provider_map_dbnames = {
@@ -193,6 +193,10 @@ def register_schema(providers: List[str],
     :return:
     :rtype:
     """
+    for item in schema_base._decl_class_registry.items():
+        cls = item[1]
+        if issubclass(cls, schema_base):
+            global_schemas.append(cls)
 
     def register(cls):
         for provider in providers:
