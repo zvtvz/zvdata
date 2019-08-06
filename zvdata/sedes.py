@@ -13,21 +13,9 @@ from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.elements import BinaryExpression
 
-from zvdata.domain import context
+from zvdata.domain import context, table_name_to_domain_name
 from zvdata.structs import IntervalLevel
 from zvdata.utils.time_utils import to_time_str
-
-
-def table_name_to_domain(table_name: str):
-    parts = table_name.split('_')
-    domain_name = ''
-    for part in parts:
-        if part[0].isdigit():
-            domain_name = domain_name + part.upper()
-        else:
-            domain_name = domain_name + part.capitalize()
-    exec(f'from {context["domain_module"]} import {domain_name}')
-    return eval(domain_name)
 
 
 class CustomJsonEncoder(json.JSONEncoder):
@@ -37,14 +25,17 @@ class CustomJsonEncoder(json.JSONEncoder):
             left, expression, _ = sql_str.split()
             table_name, col = left.split('.')
             value = obj.right.value
-            domain = table_name_to_domain(table_name)
+            domain_name = table_name_to_domain_name(table_name)
 
             if expression == '=':
                 expression = '=='
+
+            exec(f'from {context["domain_module"]} import {domain_name}')
+
             if isinstance(value, str):
-                filter_str = '{}.{} {} "{}"'.format(domain.__name__, col, expression, value)
+                filter_str = '{}.{} {} "{}"'.format(domain_name, col, expression, value)
             else:
-                filter_str = '{}.{} {} {}'.format(domain.__name__, col, expression, value)
+                filter_str = '{}.{} {} {}'.format(domain_name, col, expression, value)
             return {'_type': 'filter',
                     'data': filter_str}
 

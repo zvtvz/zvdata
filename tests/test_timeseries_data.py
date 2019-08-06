@@ -25,7 +25,7 @@ class ChinaStockDayKdataRecorder(FixedCycleDataRecorder):
     entity_schema = Stock
 
     provider = 'netease'
-    data_schema = Stock1DKdata
+    data_schema = Stock1dKdata
     url = 'http://quotes.money.163.com/service/chddata.html?code={}{}&start={}&end={}&fields=TCLOSE;HIGH;LOW;TOPEN;LCLOSE;CHG;PCHG;TURNOVER;VOTURNOVER;VATURNOVER'
 
     def __init__(self, entity_type='stock', exchanges=['sh', 'sz'], entity_ids=None, codes=None, batch_size=10,

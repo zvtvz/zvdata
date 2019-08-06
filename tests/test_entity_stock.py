@@ -92,7 +92,7 @@ def test_get_data():
 
 def test_generate_api():
     generate_api(api_tmp_path, api_tmp_path)
-    exec('from tests.api import get_stocks')
-    get_stocks1 = eval('get_stocks')
+    exec('from tests.api import get_stock')
+    get_stocks1 = eval('get_stock')
     df = get_stocks1(limit=10, provider='sina')
     assert len(df) == 10

@@ -5,7 +5,8 @@ import os
 from sqlalchemy import Column, DateTime, String, Float
 from sqlalchemy.ext.declarative import declarative_base
 
-from zvdata.domain import EntityMixin, register_schema, init_context, register_api
+from zvdata.domain import EntityMixin, register_schema, init_context, register_api, register_entity, \
+    domain_name_to_table_name
 from zvdata.structs import Mixin
 
 DATA_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'datasample'))
@@ -19,26 +20,19 @@ api_tmp_path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
 # define the schema
 @register_api(provider='sina', api_dir=api_tmp_path)
-@register_schema(providers=['eastmoney', 'sina'], db_name='meta', schema_base=MetaBase, entity_type='stock')
+@register_entity(entity_type='stock')
 class Stock(MetaBase, EntityMixin):
-    __tablename__ = 'stocks'
+    __tablename__ = domain_name_to_table_name('Stock')
     # 上市日期
     list_date = Column(DateTime)
 
+
+register_schema(providers=['eastmoney', 'sina'], db_name='meta', schema_base=MetaBase)
 
 # define the db
 MetaBase = declarative_base()
 
 api_tmp_path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-
-
-# define the schema
-@register_api(provider='sina', api_dir=api_tmp_path)
-@register_schema(providers=['eastmoney', 'sina'], db_name='meta', schema_base=MetaBase, entity_type='stock')
-class Stock(MetaBase, EntityMixin):
-    __tablename__ = 'stocks'
-    # 上市日期
-    list_date = Column(DateTime)
 
 
 class StockKdataCommon(Mixin):
@@ -70,6 +64,8 @@ class StockKdataCommon(Mixin):
 Stock1DKdataBase = declarative_base()
 
 
-@register_schema(providers=['netease'], db_name='stock_1d_kdata', schema_base=Stock1DKdataBase)
-class Stock1DKdata(Stock1DKdataBase, StockKdataCommon):
+class Stock1dKdata(Stock1DKdataBase, StockKdataCommon):
     __tablename__ = 'stock_1d_kdata'
+
+
+register_schema(providers=['netease'], db_name='stock_1d_kdata', schema_base=Stock1DKdataBase)
