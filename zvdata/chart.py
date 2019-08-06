@@ -4,7 +4,6 @@ from typing import List
 import pandas as pd
 import plotly
 import plotly.graph_objs as go
-
 from zvdata.api import decode_entity_id
 from zvdata.utils.pd_utils import df_is_not_null, fill_with_same_index
 from zvdata.utils.time_utils import now_time_str, TIME_FORMAT_ISO8601
@@ -161,6 +160,7 @@ class Chart(object):
                         low = df.loc[:, 'low']
 
                     data.append(go.Candlestick(x=xdata, open=open, close=close, low=low, high=high, name=trace_name))
+                # 表格
                 elif figure == go.Table:
                     cols = [self.time_field] + list(df.columns)
                     trace = go.Table(
@@ -172,6 +172,13 @@ class Chart(object):
                                    align=['left'] * 5))
 
                     data.append(trace)
+                # 柱状图
+                elif figure == go.Bar:
+                    trace_name = '{}_{}'.format(series_name, self.value_fields[i])
+
+                    ydata = df.loc[:, self.value_fields[i]].values.tolist()
+                    data.append(figure(x=xdata, y=ydata, name=trace_name))
+
 
                 else:
                     trace_name = '{}_{}'.format(series_name, self.value_fields[i])

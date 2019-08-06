@@ -272,14 +272,14 @@ class DataReader(object):
              keep_ui_state=True,
              annotation_df=None):
         if figures == dash_table.DataTable:
-            self.data_df.reset_index(inplace=True)
+            df = self.data_df.reset_index()
             return dash_table.DataTable(
                 columns=[
                     {'name': i, 'id': i} for i in self.data_df.columns
                     # omit the id column
                     if i != 'id'
                 ],
-                data=self.data_df.to_dict('records'),
+                data=df.to_dict('records'),
                 filter_action="native",
                 sort_action="native",
                 sort_mode='multi',
