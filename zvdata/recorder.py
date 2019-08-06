@@ -271,10 +271,14 @@ class TimeSeriesDataRecorder(RecorderForEntities):
         :param domain_list:
         """
         if domain_list:
-            if domain_list[0].timestamp >= domain_list[-1].timestamp:
-                first_timestamp = domain_list[-1].timestamp
-                last_timestamp = domain_list[0].timestamp
-            else:
+            try:
+                if domain_list[0].timestamp >= domain_list[-1].timestamp:
+                    first_timestamp = domain_list[-1].timestamp
+                    last_timestamp = domain_list[0].timestamp
+                else:
+                    first_timestamp = domain_list[0].timestamp
+                    last_timestamp = domain_list[-1].timestamp
+            except:
                 first_timestamp = domain_list[0].timestamp
                 last_timestamp = domain_list[-1].timestamp
 
@@ -294,6 +298,7 @@ class TimeSeriesDataRecorder(RecorderForEntities):
     def run(self):
         finished_items = []
         unfinished_items = self.entities
+        raising_exeption = None
         while True:
             for entity_item in unfinished_items:
                 try:
@@ -374,6 +379,7 @@ class TimeSeriesDataRecorder(RecorderForEntities):
                 except Exception as e:
                     self.logger.exception(
                         "recording data for entity_id:{},{},error:{}".format(entity_item.id, self.data_schema, e))
+                    raising_exeption = e
                     finished_items = unfinished_items
                     break
 
@@ -383,6 +389,9 @@ class TimeSeriesDataRecorder(RecorderForEntities):
                 break
 
         self.on_finish()
+
+        if raising_exeption:
+            raise raising_exeption
 
 
 class FixedCycleDataRecorder(TimeSeriesDataRecorder):

@@ -61,6 +61,7 @@ def get_data(data_schema,
              index_is_time: bool = True,
              time_field: str = 'timestamp'):
     assert data_schema is not None
+    assert provider is not None
     assert provider in global_providers
 
     local_session = False
