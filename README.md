@@ -11,6 +11,7 @@ zvdata is an extendable library for recording and analyzing data
 
 # how to use
 
+this's abstract part of [zvt](https://github.com/zvtvz/zvt),it could be used to recording,calculating,visualizing the data in a funny way
 
 # Contact information
 QQ group:300911873  
