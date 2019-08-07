@@ -159,7 +159,8 @@ class FilterFactor(Factor):
 class ScoreFactor(Factor):
     factor_type = FactorType.score
 
-    def __init__(self, data_schema: object,
+    def __init__(self,
+                 data_schema: object,
                  entity_ids: List[str] = None,
                  entity_type: str = 'stock',
                  exchanges: List[str] = ['sh', 'sz'],
@@ -167,15 +168,15 @@ class ScoreFactor(Factor):
                  the_timestamp: Union[str, pd.Timestamp] = None,
                  start_timestamp: Union[str, pd.Timestamp] = None,
                  end_timestamp: Union[str, pd.Timestamp] = None,
-                 columns: List = None,
-                 filters: List = None,
-                 limit: int = None,
-                 provider: str = 'eastmoney',
+                 columns: List = None, filters: List = None,
+                 limit: int = None, provider: str = 'eastmoney',
                  level: Union[str, IntervalLevel] = IntervalLevel.LEVEL_1DAY,
                  real_time: bool = False,
                  refresh_interval: int = 10,
                  category_field: str = 'entity_id',
                  time_field: str = 'timestamp',
+                 trip_timestamp: bool = True,
+                 auto_load: bool = False,
                  keep_all_timestamp: bool = False,
                  fill_method: str = 'ffill',
                  effective_number: int = 10,
@@ -183,7 +184,8 @@ class ScoreFactor(Factor):
                  depth_computing_method='ma',
                  depth_computing_param={'window': '100D', 'on': 'timestamp'},
                  breadth_computing_method='quantile',
-                 breadth_computing_param={'score_levels': [0.1, 0.3, 0.5, 0.7, 0.9]}) -> None:
+                 breadth_computing_param={'score_levels': [0.1, 0.3, 0.5, 0.7, 0.9]}
+                 ) -> None:
         self.depth_computing_method = depth_computing_method
         self.depth_computing_param = depth_computing_param
 
@@ -191,9 +193,9 @@ class ScoreFactor(Factor):
         self.breadth_computing_param = breadth_computing_param
 
         super().__init__(data_schema, entity_ids, entity_type, exchanges, codes, the_timestamp, start_timestamp,
-                         end_timestamp,
-                         columns, filters, limit, provider, level, real_time, refresh_interval, category_field,
-                         time_field, keep_all_timestamp, fill_method, effective_number)
+                         end_timestamp, columns, filters, limit, provider, level, real_time, refresh_interval,
+                         category_field, time_field, trip_timestamp, auto_load, keep_all_timestamp, fill_method,
+                         effective_number)
 
     def depth_computing(self):
         if self.depth_computing_method != None:
