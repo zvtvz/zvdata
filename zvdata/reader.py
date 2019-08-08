@@ -102,6 +102,10 @@ class DataReader(object):
 
         self.entity_type = entity_type
         self.exchanges = exchanges
+        if codes:
+            if type(codes) == str:
+                codes = codes.split(',')
+
         self.codes = codes
         self.entity_ids = entity_ids
 
@@ -272,23 +276,25 @@ class DataReader(object):
              keep_ui_state=True,
              annotation_df=None):
         if figures == dash_table.DataTable:
-            df = self.data_df.reset_index()
-            return dash_table.DataTable(
-                columns=[
-                    {'name': i, 'id': i} for i in self.data_df.columns
-                    # omit the id column
-                    if i != 'id'
-                ],
-                data=df.to_dict('records'),
-                filter_action="native",
-                sort_action="native",
-                sort_mode='multi',
-                row_selectable='multi',
-                selected_rows=[],
-                page_action='native',
-                page_current=0,
-                page_size=500,
-            )
+            if len(self.data_df) > 0:
+                df = self.data_df.reset_index(level='timestamp')
+                return dash_table.DataTable(
+                    columns=[{'name': 'entity_id', 'id': 'entity_id'}] + [
+                        {'name': i, 'id': i} for i in self.data_df.columns
+                        # omit the id column
+                        if i != 'id'
+                    ],
+                    data=[{'entity_id': item} for item in df.index.to_series()] + df.to_dict('records'),
+                    filter_action="native",
+                    sort_action="native",
+                    sort_mode='multi',
+                    row_selectable='multi',
+                    selected_rows=[],
+                    page_action='native',
+                    page_current=0,
+                    page_size=50,
+                )
+            return None
 
         chart = Chart(category_field=self.category_field, figures=figures, modes=modes, value_fields=value_fields,
                       render=render, file_name=file_name,

@@ -67,7 +67,7 @@ class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
         self.factor_name = type(self).__name__.lower()
 
         if columns:
-            self.factors = [item.key for item in columns]
+            self.factors = [item.key for item in self.columns]
 
         self.keep_all_timestamp = keep_all_timestamp
         self.fill_method = fill_method

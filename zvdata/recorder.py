@@ -133,14 +133,14 @@ class TimeSeriesDataRecorder(RecorderForEntities):
                  start_timestamp=None,
                  end_timestamp=None) -> None:
 
-        super().__init__(entity_type, exchanges, entity_ids, codes, batch_size, force_update, sleeping_time)
-
         self.default_size = default_size
         self.one_shot = one_shot
         self.fix_duplicate_way = fix_duplicate_way
 
         self.start_timestamp = to_pd_timestamp(start_timestamp)
         self.end_timestamp = to_pd_timestamp(end_timestamp)
+
+        super().__init__(entity_type, exchanges, entity_ids, codes, batch_size, force_update, sleeping_time)
 
     def get_latest_saved_record(self, entity):
         order = eval('self.data_schema.{}.desc()'.format(self.get_evaluated_time_field()))
