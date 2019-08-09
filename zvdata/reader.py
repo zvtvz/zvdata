@@ -4,6 +4,7 @@ import time
 from typing import List, Union
 
 import dash_table
+import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
 
@@ -42,6 +43,29 @@ class DataListener(object):
         added_data : the data added
         """
         pass
+
+
+class NormalData(object):
+    @staticmethod
+    def sample(entity_ids: List[str] = ['jack', 'ada', 'robin', 'kris'],
+               x_field: str = None,
+               is_timeseries: bool = True,
+               columns: List[str] = ['algorithm', 'management', 'communication', 'open_source',
+                                     'endurance', 'focus', 'innovation', 'handsome']):
+        dfs = pd.DataFrame()
+        for entity in entity_ids:
+            if x_field is not None and is_timeseries:
+                df = pd.DataFrame(np.random.randint(low=0, high=100, size=(20, len(columns))), columns=columns)
+                df[x_field] = pd.date_range(end='1/1/2018', periods=20)
+            else:
+                df = pd.DataFrame(np.random.randint(low=0, high=100, size=(1, len(columns))), columns=columns)
+
+            df['entity_id'] = entity
+            dfs = dfs.append(df)
+
+        dfs = index_df_with_category_time(df=dfs, time_field=x_field, is_timeseries=is_timeseries)
+
+        return dfs
 
 
 class DataReader(object):

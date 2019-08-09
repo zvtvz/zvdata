@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
+from enum import Enum
 from typing import List
 
 import pandas as pd
 import plotly
 import plotly.graph_objs as go
+
 from zvdata.api import decode_entity_id
 from zvdata.utils.pd_utils import df_is_not_null, fill_with_same_index
 from zvdata.utils.time_utils import now_time_str, TIME_FORMAT_ISO8601
@@ -13,6 +15,24 @@ def get_ui_path(name):
     if name is None:
         name = '{}.html'.format(now_time_str(fmt=TIME_FORMAT_ISO8601))
     return '{}.html'.format(name)
+
+
+class ShowIntent(Enum):
+    compare = 'compare'
+    composition = 'composition'
+    distribution = 'distribution'
+
+
+class ShowAble(object):
+
+    def __init__(self, df,) -> None:
+        self.df: pd.DataFrame = df
+
+    def show(self):
+        pass
+
+    def evaluate_show_intent(self):
+        pass
 
 
 class Chart(object):
