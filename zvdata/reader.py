@@ -11,7 +11,7 @@ import plotly.graph_objs as go
 from zvdata.api import get_data
 from zvdata.chart import Chart
 from zvdata.structs import IntervalLevel
-from zvdata.utils.pd_utils import index_df_with_category_time, df_is_not_null
+from zvdata.utils.pd_utils import index_df_with_entity_xfield, df_is_not_null
 from zvdata.utils.time_utils import to_pd_timestamp, to_time_str, now_pd_timestamp
 
 
@@ -63,7 +63,7 @@ class NormalData(object):
             df['entity_id'] = entity
             dfs = dfs.append(df)
 
-        dfs = index_df_with_category_time(df=dfs, time_field=x_field, is_timeseries=is_timeseries)
+        dfs = index_df_with_entity_xfield(df=dfs, xfield=x_field, is_timeseries=is_timeseries)
 
         return dfs
 
@@ -189,8 +189,8 @@ class DataReader(object):
                     lambda x: to_pd_timestamp(to_time_str(x)))
 
         if df_is_not_null(self.data_df):
-            self.data_df = index_df_with_category_time(self.data_df, category=self.category_field,
-                                                       time_field=self.time_field)
+            self.data_df = index_df_with_entity_xfield(self.data_df, entity_field=self.category_field,
+                                                       xfield=self.time_field)
 
         for listener in self.data_listeners:
             listener.on_data_loaded(self.data_df)
@@ -242,8 +242,8 @@ class DataReader(object):
                 if df_is_not_null(added):
                     would_added = added[added['timestamp'] != recorded_timestamp].copy()
                     if not would_added.empty:
-                        added = index_df_with_category_time(would_added, category=self.category_field,
-                                                            time_field=self.time_field)
+                        added = index_df_with_entity_xfield(would_added, entity_field=self.category_field,
+                                                            xfield=self.time_field)
                         self.logger.info('category:{},added:\n{}'.format(category, added))
 
                         self.data_df = self.data_df.append(added)

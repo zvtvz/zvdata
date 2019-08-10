@@ -6,3 +6,4 @@ tzlocal == 1.5.1
 xlrd == 1.1.0
 dash==1.0.0
 dash-daq==0.1.0
+simplejson

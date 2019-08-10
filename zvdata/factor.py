@@ -9,7 +9,7 @@ from zvdata.chart import Chart
 from zvdata.reader import DataReader, DataListener
 from zvdata.sedes import Jsonable, UiComposable
 from zvdata.structs import IntervalLevel
-from zvdata.utils.pd_utils import index_df_with_category_time
+from zvdata.utils.pd_utils import index_df_with_entity_xfield
 
 
 class FactorType(enum.Enum):
@@ -273,8 +273,8 @@ class ScoreFactor(Factor):
                                                               axis=1)
 
             self.result_df = self.result_df.reset_index()
-            self.result_df = index_df_with_category_time(self.result_df, category=self.category_field,
-                                                         time_field=self.time_field)
+            self.result_df = index_df_with_entity_xfield(self.result_df, entity_field=self.category_field,
+                                                         xfield=self.time_field)
             self.result_df = self.result_df.loc[:, self.factors]
 
             self.result_df = self.result_df.loc[~self.result_df.index.duplicated(keep='first')]
