@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
+import enum
 from typing import List
 
+import numpy as np
 import pandas as pd
 import plotly
 import plotly.graph_objs as go
@@ -16,11 +18,67 @@ def get_ui_path(name):
     return '{}.html'.format(name)
 
 
+class TableType(enum.Enum):
+    single_single_single = 'single_single_single'
+    single_single_multiple = 'single_single_multiple'
+    single_multiple_single = 'single_multiple_single'
+    single_multiple_multiple = 'single_multiple_multiple'
+
+    multiple_single_single = 'multiple_single_single'
+    multiple_single_multiple = 'multiple_single_multiple'
+    multiple_multiple_single = 'multiple_multiple_single'
+    multiple_multiple_multiple = 'multiple_multiple_multiple'
+
+
+class NormalData(object):
+    table_type_sample = None
+
+    @staticmethod
+    def sample(table_type: TableType = TableType.multiple_multiple_single):
+
+        if NormalData.table_type_sample is None:
+            NormalData.table_type_sample = {
+                TableType.single_single_single: NormalData._sample(entity_ids=['jack'], row_size=1,
+                                                                   columns=['score']),
+                TableType.single_single_multiple: NormalData._sample(entity_ids=['jack'], row_size=1),
+                TableType.single_multiple_single: NormalData._sample(entity_ids=['jack'], columns=['score']),
+                TableType.single_multiple_multiple: NormalData._sample(entity_ids=['jack']),
+
+                TableType.multiple_single_single: NormalData._sample(row_size=1, columns=['math']),
+                TableType.multiple_single_multiple: NormalData._sample(row_size=1),
+                TableType.multiple_multiple_single: NormalData._sample(columns=['math']),
+                TableType.multiple_multiple_multiple: NormalData._sample()
+            }
+
+        return NormalData.table_type_sample.get(table_type)
+
+    @staticmethod
+    def _sample(entity_ids: List[str] = ['jack', 'helen', 'kris'],
+                x_field: str = 'timestamp',
+                row_size: int = 10,
+                is_timeseries: bool = True,
+                columns: List[str] = ['math', 'physics', 'programing']):
+        dfs = pd.DataFrame()
+        for entity in entity_ids:
+            if x_field is not None and is_timeseries:
+                df = pd.DataFrame(np.random.randint(low=0, high=100, size=(row_size, len(columns))), columns=columns)
+                df[x_field] = pd.date_range(end='1/1/2018', periods=row_size)
+            else:
+                df = pd.DataFrame(np.random.randint(low=0, high=100, size=(row_size, len(columns))), columns=columns)
+
+            df['entity_id'] = entity
+            dfs = dfs.append(df)
+
+        dfs = index_df_with_entity_xfield(df=dfs, xfield=x_field, is_timeseries=is_timeseries)
+
+        return dfs
+
+
 class Drawer(object):
     def __init__(self,
                  df: pd.DataFrame = None,
                  entity_field: str = 'entity_id',
-                 x_field: str = 'timestamp',
+                 index_field: str = 'timestamp',
                  is_timeseries: bool = True,
                  render: str = 'html',
                  file_name: str = None,
@@ -31,7 +89,7 @@ class Drawer(object):
         self.keep_ui_state = keep_ui_state
         self.data_df: pd.DataFrame = df
         self.entity_field = entity_field
-        self.x_field = x_field
+        self.index_field = index_field
         self.is_timeseries = is_timeseries
         self.render = render
         self.file_name = file_name
@@ -58,7 +116,7 @@ class Drawer(object):
         if len(names) == 1 and names[0] == self.entity_field:
             return True
 
-        if len(names) == 2 and names[0] == self.entity_field and names[1] == self.x_field:
+        if len(names) == 2 and names[0] == self.entity_field and names[1] == self.index_field:
             return True
 
         return False
@@ -68,7 +126,7 @@ class Drawer(object):
             if not self.is_normalized():
                 self.data_df.reset_index(inplace=True)
                 self.data_df = index_df_with_entity_xfield(self.data_df, entity_field=self.entity_field,
-                                                           xfield=self.x_field, is_timeseries=self.is_timeseries)
+                                                           xfield=self.index_field, is_timeseries=self.is_timeseries)
 
             if isinstance(self.data_df.index, pd.MultiIndex):
                 self.entity_ids = list(self.data_df.index.get_level_values(0).values)
@@ -89,7 +147,7 @@ class Drawer(object):
                 columns.remove(self.entity_field)
                 self.entity_map_df[entity_id] = df.loc[:, columns]
 
-    def get_composition_type(self):
+    def get_table_type(self):
         entity_size = len(self.entity_ids)
         row_count = int(len(self.data_df) / entity_size)
         column_size = len(self.data_df.columns)
@@ -99,30 +157,17 @@ class Drawer(object):
         else:
             a = 'multiple'
 
-        if row_count <= 10:
-            b = 'few'
+        if row_count == 1:
+            b = 'single'
         else:
-            b = 'many'
+            b = 'multiple'
 
         if column_size == 1:
             c = 'single'
         else:
             c = 'multiple'
 
-        return f'{a} - {b} - {c}'
-
-    def draw_line(self, mode='lines'):
-        data = []
-        for entity_id, df in self.entity_map_df.items():
-            for col in df.columns:
-                if self.x_field not in df.index.names:
-                    raise Exception('the table shape:{} not for line'.format(self.get_composition_type()))
-
-                trace_name = '{}_{}'.format(entity_id, col)
-                ydata = df.loc[:, col].values.tolist()
-                data.append(go.Scatter(x=df.index, y=ydata, mode=mode, name=trace_name))
-
-        self.draw(data=data)
+        return f'{a}_{b}_{c}'
 
     def set_data_df(self, df):
         self.data_df = df
@@ -186,43 +231,45 @@ class Drawer(object):
         else:
             uirevision = None
 
-        return go.Layout(showlegend=True,
-                         uirevision=uirevision,
-                         height=self.height,
-                         width=self.width,
-                         title=self.title,
-                         annotations=self.get_plotly_annotations(),
-                         yaxis=dict(
-                             autorange=True,
-                             fixedrange=False
-                         ),
-                         xaxis=dict(
-                             rangeselector=dict(
-                                 buttons=list([
-                                     dict(count=1,
-                                          label='1m',
-                                          step='month',
-                                          stepmode='backward'),
-                                     dict(count=6,
-                                          label='6m',
-                                          step='month',
-                                          stepmode='backward'),
-                                     dict(count=1,
-                                          label='YTD',
-                                          step='year',
-                                          stepmode='todate'),
-                                     dict(count=1,
-                                          label='1y',
-                                          step='year',
-                                          stepmode='backward'),
-                                     dict(step='all')
-                                 ])
-                             ),
-                             rangeslider=dict(
-                                 visible=True
-                             ),
-                             type='date'
-                         ))
+        layout = go.Layout(showlegend=True,
+                           uirevision=uirevision,
+                           height=self.height,
+                           width=self.width,
+                           title=self.title,
+                           annotations=self.get_plotly_annotations(),
+                           yaxis=dict(
+                               autorange=True,
+                               fixedrange=False
+                           ))
+        if self.is_timeseries:
+            layout.xaxis = dict(
+                rangeselector=dict(
+                    buttons=list([
+                        dict(count=1,
+                             label='1m',
+                             step='month',
+                             stepmode='backward'),
+                        dict(count=6,
+                             label='6m',
+                             step='month',
+                             stepmode='backward'),
+                        dict(count=1,
+                             label='YTD',
+                             step='year',
+                             stepmode='todate'),
+                        dict(count=1,
+                             label='1y',
+                             step='year',
+                             stepmode='backward'),
+                        dict(step='all')
+                    ])
+                ),
+                rangeslider=dict(
+                    visible=True
+                ),
+                type='date'
+            )
+        return layout
 
     def draw(self, data, layout=None):
         if layout is None:
@@ -240,8 +287,40 @@ class Drawer(object):
 
         return data, layout
 
-    def draw_scatter(self):
-        pass
+    def draw_line(self):
+        self.draw_scatter(mode='lines')
+
+    def draw_scatter(self, mode='markers'):
+        data = []
+        for entity_id, df in self.entity_map_df.items():
+            for col in df.columns:
+                if self.index_field not in df.index.names:
+                    raise Exception('the table_type:{} not for line'.format(self.get_table_type()))
+
+                trace_name = '{}_{}'.format(entity_id, col)
+                ydata = df.loc[:, col].values.tolist()
+                data.append(go.Scatter(x=df.index, y=ydata, mode=mode, name=trace_name))
+
+        self.draw(data=data)
+
+    def draw_bar(self, x='columns'):
+        data = []
+        for entity_id, df in self.entity_map_df.items():
+            for col in df.columns:
+                trace_name = '{}_{}'.format(entity_id, col)
+                ydata = df.loc[:, col].values.tolist()
+                data.append(go.Bar(x=df.index, y=ydata, name=trace_name))
+
+        self.draw(data=data)
+
+    def draw_pie(self):
+        data = []
+        df: pd.DataFrame
+        for entity_id, df in self.entity_map_df.items():
+            for _, row in df.iterrows():
+                data.append(go.Pie(name=entity_id, labels=df.columns.tolist(), values=row.tolist()))
+
+        self.draw(data=data)
 
     def draw_histogram(self):
         pass
@@ -252,13 +331,7 @@ class Drawer(object):
     def draw_table(self):
         pass
 
-    def draw_bar(self):
-        pass
-
     def draw_polar(self):
-        pass
-
-    def draw_pie(self):
         pass
 
 
@@ -482,7 +555,7 @@ class Chart(object):
         if self.render == 'html':
             plotly.offline.plot(figure_or_data={'data': data,
                                                 'layout': layout
-                                                }, filename=get_ui_path(self.file_name), )
+                                                }, filename=get_ui_path(self.file_name))
         elif self.render == 'notebook':
             plotly.offline.init_notebook_mode(connected=True)
             plotly.offline.iplot(figure_or_data={'data': data,
@@ -493,8 +566,7 @@ class Chart(object):
 
 
 if __name__ == '__main__':
-    from zvdata.reader import NormalData
-
-    df = NormalData.sample(x_field='timestamp')
-    drawer = Drawer(df=df)
-    drawer.draw_line()
+    for table_type in TableType:
+        df = NormalData.sample(table_type=table_type)
+        drawer = Drawer(df=df)
+        drawer.draw_pie()
