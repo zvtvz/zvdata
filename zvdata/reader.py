@@ -8,7 +8,7 @@ import pandas as pd
 import plotly.graph_objs as go
 
 from zvdata.api import get_data
-from zvdata.chart import Chart
+from zvdata.chart import Drawer
 from zvdata.structs import IntervalLevel
 from zvdata.utils.pd_utils import index_df_with_entity_xfield, df_is_not_null
 from zvdata.utils.time_utils import to_pd_timestamp, to_time_str, now_pd_timestamp
@@ -296,9 +296,9 @@ class DataReader(object):
                 )
             return None
 
-        chart = Chart(category_field=self.category_field, figures=figures, modes=modes, value_fields=value_fields,
-                      render=render, file_name=file_name,
-                      width=width, height=height, title=title, keep_ui_state=keep_ui_state)
+        chart = Drawer(category_field=self.category_field, figures=figures, modes=modes, value_fields=value_fields,
+                       render=render, file_name=file_name,
+                       width=width, height=height, title=title, keep_ui_state=keep_ui_state)
         chart.set_data_df(self.data_df)
         chart.set_annotation_df(annotation_df)
         return chart.draw()

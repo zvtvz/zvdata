@@ -5,7 +5,7 @@ from typing import List, Union
 import pandas as pd
 import plotly.graph_objs as go
 
-from zvdata.chart import Chart
+from zvdata.chart import Drawer
 from zvdata.reader import DataReader, DataListener
 from zvdata.sedes import Jsonable, UiComposable
 from zvdata.structs import IntervalLevel
@@ -104,17 +104,17 @@ class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
 
     def draw_depth(self, figures=[go.Scatter], modes=['lines'], value_fields=['close'], render='html', file_name=None,
                    width=None, height=None, title=None, keep_ui_state=True):
-        chart = Chart(category_field=self.category_field, figures=figures, modes=modes, value_fields=value_fields,
-                      render=render, file_name=file_name,
-                      width=width, height=height, title=title, keep_ui_state=keep_ui_state)
+        chart = Drawer(category_field=self.category_field, figures=figures, modes=modes, value_fields=value_fields,
+                       render=render, file_name=file_name,
+                       width=width, height=height, title=title, keep_ui_state=keep_ui_state)
         chart.set_data_df(self.depth_df)
         chart.draw()
 
     def draw_result(self, figures=[go.Scatter], modes=['lines'], value_fields=['score'], render='html', file_name=None,
                     width=None, height=None, title=None, keep_ui_state=True):
-        chart = Chart(category_field=self.category_field, figures=figures, modes=modes, value_fields=value_fields,
-                      render=render, file_name=file_name,
-                      width=width, height=height, title=title, keep_ui_state=keep_ui_state)
+        chart = Drawer(category_field=self.category_field, figures=figures, modes=modes, value_fields=value_fields,
+                       render=render, file_name=file_name,
+                       width=width, height=height, title=title, keep_ui_state=keep_ui_state)
         chart.set_data_df(self.result_df)
         chart.draw()
 
