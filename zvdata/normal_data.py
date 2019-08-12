@@ -110,6 +110,43 @@ class NormalData(object):
 
         return f'{a}_{b}_{c}'
 
+    def get_intents(self):
+        table_type = TableType(self.get_table_type())
+
+        # single entity
+        if table_type == TableType.single_single_single:
+            return ['not_much_meaning']
+
+        if table_type == TableType.single_single_multiple:
+            return ['compare', 'composition']
+        if table_type == TableType.single_multiple_single:
+            return ['compare']
+
+        if table_type == TableType.single_multiple_multiple:
+            return ['compare']
+
+        # multiple entity
+        if table_type == TableType.multiple_single_single:
+            return ['compare']
+
+        if table_type == TableType.multiple_single_multiple:
+            return ['compare']
+
+        if table_type == TableType.multiple_multiple_single:
+            return ['compare']
+
+        if table_type == TableType.multiple_multiple_multiple:
+            return ['compare']
+
+    @staticmethod
+    def get_charts_by_intent(intent):
+        if intent == 'compare':
+            return ['line', 'bar']
+        if intent == 'composition':
+            return ['pie']
+
+        return ['line']
+
     @staticmethod
     def sample(table_type: TableType = TableType.multiple_multiple_single):
 
