@@ -131,15 +131,16 @@ class Drawer(object):
     def draw(self, chart: str, plotly_layout=None, render='html', file_name=None, width=None, height=None,
              title=None, keep_ui_state=True, **kwargs):
 
-        return eval(
-            'self.draw_{}(plotly_layout=plotly_layout, render=render, file_name=file_name, width=width,height=height, title=title, keep_ui_state=keep_ui_state)'.format(
-                chart))
+        func_name = f'self.draw_{chart}'
+        draw_func = eval(func_name)
+
+        return draw_func(plotly_layout=plotly_layout, render=render, file_name=file_name, width=width, height=height,
+                         title=title, keep_ui_state=keep_ui_state, **kwargs)
 
     def draw_line(self, plotly_layout=None, render='html', file_name=None, width=None, height=None,
                   title=None, keep_ui_state=True, **kwargs):
         return self.draw_scatter(mode='lines', plotly_layout=plotly_layout, render=render, file_name=file_name,
-                                 width=width,
-                                 height=height, title=title, keep_ui_state=keep_ui_state, **kwargs)
+                                 width=width, height=height, title=title, keep_ui_state=keep_ui_state, **kwargs)
 
     def draw_scatter(self, mode='markers', plotly_layout=None, render='html', file_name=None, width=None, height=None,
                      title=None, keep_ui_state=True, **kwargs):
