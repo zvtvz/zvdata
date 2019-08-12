@@ -9,7 +9,7 @@ from zvdata.chart import Drawer
 from zvdata.reader import DataReader, DataListener
 from zvdata.sedes import Jsonable, UiComposable
 from zvdata.structs import IntervalLevel
-from zvdata.utils.pd_utils import index_df_with_entity_xfield
+from zvdata.utils.pd_utils import index_df_with_category_xfield
 
 
 class FactorType(enum.Enum):
@@ -50,8 +50,8 @@ class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
                  limit: int = None,
                  provider: str = 'eastmoney',
                  level: Union[str, IntervalLevel] = IntervalLevel.LEVEL_1DAY,
-                 real_time: bool = False,
-                 refresh_interval: int = 10,
+
+
                  category_field: str = 'entity_id',
                  time_field: str = 'timestamp',
                  trip_timestamp: bool = True,
@@ -61,7 +61,7 @@ class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
                  fill_method: str = 'ffill',
                  effective_number: int = 10) -> None:
         super().__init__(data_schema, entity_ids, entity_type, exchanges, codes, the_timestamp, start_timestamp,
-                         end_timestamp, columns, filters, limit, provider, level, real_time, refresh_interval,
+                         end_timestamp, columns, filters, limit, provider, level,
                          category_field, time_field, trip_timestamp, auto_load)
 
         self.factor_name = type(self).__name__.lower()
@@ -108,7 +108,7 @@ class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
                        render=render, file_name=file_name,
                        width=width, height=height, title=title, keep_ui_state=keep_ui_state)
         chart.set_data_df(self.depth_df)
-        chart.draw()
+        chart.show()
 
     def draw_result(self, figures=[go.Scatter], modes=['lines'], value_fields=['score'], render='html', file_name=None,
                     width=None, height=None, title=None, keep_ui_state=True):
@@ -116,7 +116,7 @@ class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
                        render=render, file_name=file_name,
                        width=width, height=height, title=title, keep_ui_state=keep_ui_state)
         chart.set_data_df(self.result_df)
-        chart.draw()
+        chart.show()
 
     def fill_gap(self):
         if self.keep_all_timestamp:
@@ -171,8 +171,8 @@ class ScoreFactor(Factor):
                  columns: List = None, filters: List = None,
                  limit: int = None, provider: str = 'eastmoney',
                  level: Union[str, IntervalLevel] = IntervalLevel.LEVEL_1DAY,
-                 real_time: bool = False,
-                 refresh_interval: int = 10,
+
+
                  category_field: str = 'entity_id',
                  time_field: str = 'timestamp',
                  trip_timestamp: bool = True,
@@ -193,7 +193,7 @@ class ScoreFactor(Factor):
         self.breadth_computing_param = breadth_computing_param
 
         super().__init__(data_schema, entity_ids, entity_type, exchanges, codes, the_timestamp, start_timestamp,
-                         end_timestamp, columns, filters, limit, provider, level, real_time, refresh_interval,
+                         end_timestamp, columns, filters, limit, provider, level,
                          category_field, time_field, trip_timestamp, auto_load, keep_all_timestamp, fill_method,
                          effective_number)
 
@@ -273,8 +273,8 @@ class ScoreFactor(Factor):
                                                               axis=1)
 
             self.result_df = self.result_df.reset_index()
-            self.result_df = index_df_with_entity_xfield(self.result_df, entity_field=self.category_field,
-                                                         xfield=self.time_field)
+            self.result_df = index_df_with_category_xfield(self.result_df, category_field=self.category_field,
+                                                           xfield=self.time_field)
             self.result_df = self.result_df.loc[:, self.factors]
 
             self.result_df = self.result_df.loc[~self.result_df.index.duplicated(keep='first')]

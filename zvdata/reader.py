@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
+import json
 import logging
 import time
 from typing import List, Union
 
-import dash_table
 import pandas as pd
-import plotly.graph_objs as go
 
 from zvdata.api import get_data
 from zvdata.chart import Drawer
+from zvdata.normal_data import NormalData
 from zvdata.structs import IntervalLevel
-from zvdata.utils.pd_utils import index_df_with_entity_xfield, df_is_not_null
+from zvdata.utils.pd_utils import index_df_with_category_xfield, df_is_not_null
 from zvdata.utils.time_utils import to_pd_timestamp, to_time_str, now_pd_timestamp
 
 
@@ -61,32 +61,10 @@ class DataReader(object):
                  limit: int = None,
                  provider: str = 'eastmoney',
                  level: IntervalLevel = IntervalLevel.LEVEL_1DAY,
-                 real_time: bool = False,
-                 refresh_interval: int = 10,
                  category_field: str = 'entity_id',
                  time_field: str = 'timestamp',
                  trip_timestamp: bool = True,
                  auto_load: bool = True) -> None:
-        """
-
-        Parameters
-        ----------
-        data_schema :
-        entity_ids : use entity_ids if possible
-        entity_type :
-        exchanges :
-        codes : entity_type + exchanges + codes make entity_ids
-        the_timestamp : if set,just read the data in specific time
-        start_timestamp :
-        end_timestamp :
-        columns : the columns in data_schema for reading
-        filters : sqlalchemy filters
-        provider :
-        level :
-        real_time : data is history + happening event,real_time means reading the happening data if possible
-        refresh_interval :
-        category_field : the level 0 index for the df
-        """
         self.data_schema = data_schema
 
         self.the_timestamp = the_timestamp
@@ -104,7 +82,10 @@ class DataReader(object):
         self.exchanges = exchanges
         if codes:
             if type(codes) == str:
-                codes = codes.split(',')
+                if codes.startswith('[') and codes.endswith(']'):
+                    codes = json.loads(codes)
+                else:
+                    codes = codes.split(',')
 
         self.codes = codes
         self.entity_ids = entity_ids
@@ -113,8 +94,6 @@ class DataReader(object):
         self.filters = filters
         self.limit = limit
         self.level = IntervalLevel(level)
-        self.real_time = real_time
-        self.refresh_interval = refresh_interval
         self.category_field = category_field
         self.time_field = time_field
         self.trip_timestamp = trip_timestamp
@@ -137,6 +116,7 @@ class DataReader(object):
         self.data_listeners: List[DataListener] = []
 
         self.data_df: pd.DataFrame = None
+        self.normal_data: NormalData = None
 
         if self.auto_load:
             self.load_data()
@@ -165,8 +145,9 @@ class DataReader(object):
                     lambda x: to_pd_timestamp(to_time_str(x)))
 
         if df_is_not_null(self.data_df):
-            self.data_df = index_df_with_entity_xfield(self.data_df, entity_field=self.category_field,
-                                                       xfield=self.time_field)
+            self.normal_data = NormalData(df=self.data_df, category_field=self.category_field,
+                                          index_field=self.time_field, is_timeseries=True)
+            self.data_df = self.normal_data.data_df
 
         for listener in self.data_listeners:
             listener.on_data_loaded(self.data_df)
@@ -218,8 +199,8 @@ class DataReader(object):
                 if df_is_not_null(added):
                     would_added = added[added['timestamp'] != recorded_timestamp].copy()
                     if not would_added.empty:
-                        added = index_df_with_entity_xfield(would_added, entity_field=self.category_field,
-                                                            xfield=self.time_field)
+                        added = index_df_with_category_xfield(would_added, category_field=self.category_field,
+                                                              xfield=self.time_field)
                         self.logger.info('category:{},added:\n{}'.format(category, added))
 
                         self.data_df = self.data_df.append(added)
@@ -245,13 +226,6 @@ class DataReader(object):
 
         return changed
 
-    def run(self):
-        self.load_data()
-        if self.real_time:
-            while True:
-                self.move_on(to_timestamp=now_pd_timestamp())
-                time.sleep(self.refresh_interval)
-
     def register_data_listener(self, listener):
         if listener not in self.data_listeners:
             self.data_listeners.append(listener)
@@ -264,41 +238,9 @@ class DataReader(object):
         if listener in self.data_listeners:
             self.data_listeners.remove(listener)
 
-    def draw(self,
-             figures=[go.Scatter],
-             modes=['lines'],
-             value_fields=['close'],
-             render='html',
-             file_name=None,
-             width=None,
-             height=None,
-             title=None,
-             keep_ui_state=True,
-             annotation_df=None):
-        if figures == dash_table.DataTable:
-            if len(self.data_df) > 0:
-                df = self.data_df.reset_index(level='timestamp')
-                return dash_table.DataTable(
-                    columns=[{'name': 'entity_id', 'id': 'entity_id'}] + [
-                        {'name': i, 'id': i} for i in self.data_df.columns
-                        # omit the id column
-                        if i != 'id'
-                    ],
-                    data=[{'entity_id': item} for item in df.index.to_series()] + df.to_dict('records'),
-                    filter_action="native",
-                    sort_action="native",
-                    sort_mode='multi',
-                    row_selectable='multi',
-                    selected_rows=[],
-                    page_action='native',
-                    page_current=0,
-                    page_size=50,
-                )
-            return None
+    def drawer(self):
+        # FIXME"refresh normal_data?
+        self.normal_data = NormalData(df=self.data_df, category_field=self.category_field,
+                                      index_field=self.time_field, is_timeseries=True)
 
-        chart = Drawer(category_field=self.category_field, figures=figures, modes=modes, value_fields=value_fields,
-                       render=render, file_name=file_name,
-                       width=width, height=height, title=title, keep_ui_state=keep_ui_state)
-        chart.set_data_df(self.data_df)
-        chart.set_annotation_df(annotation_df)
-        return chart.draw()
+        return Drawer(data=self.normal_data)
