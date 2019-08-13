@@ -7,8 +7,6 @@ from zvdata.api import decode_entity_id
 from zvdata.normal_data import NormalData, TableType
 from zvdata.utils.pd_utils import df_is_not_null
 from zvdata.utils.time_utils import now_time_str, TIME_FORMAT_ISO8601
-from zvt.utils.utils import to_positive_number
-
 
 def get_ui_path(name):
     if name is None:

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
+import numbers
 import os
 from decimal import *
 from enum import Enum
@@ -170,3 +171,10 @@ def chrome_copy_header_to_dict(src):
             except Exception:
                 pass
     return header
+
+
+def to_positive_number(number):
+    if isinstance(number, numbers.Number):
+        return abs(number)
+
+    return 0
