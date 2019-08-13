@@ -244,3 +244,6 @@ class DataReader(object):
                                       index_field=self.time_field, is_timeseries=True)
 
         return Drawer(data=self.normal_data)
+
+    def is_empty(self):
+        return not df_is_not_null(self.data_df)

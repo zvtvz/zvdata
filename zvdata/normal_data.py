@@ -20,6 +20,39 @@ class TableType(enum.Enum):
     multiple_multiple_multiple = 'multiple_multiple_multiple'
 
 
+class IntentType(enum.Enum):
+    not_much_meaning = 'not_much_meaning'
+    # for one entity
+    compare_self = 'compare_self'
+    composite_self = 'composite_self'
+    distribute_self = 'distribute_self'
+
+    # multiple entities
+    compare_to_other = 'compare_to_other'
+
+
+class ChartType(enum.Enum):
+    line = 'line'
+    scatter = 'scatter'
+    bar = 'bar'
+    area = 'area'
+
+    pie = 'pie'
+    polar = 'polar'
+
+    histogram = 'histogram'
+
+
+intent_map_charts = {
+    IntentType.not_much_meaning: [ChartType.bar],
+    IntentType.compare_self: [ChartType.line, ChartType.bar, ChartType.scatter, ChartType.area],
+    IntentType.composite_self: [ChartType.pie, ChartType.polar],
+    IntentType.distribute_self: [ChartType.histogram],
+
+    IntentType.compare_to_other: [ChartType.line, ChartType.bar, ChartType.scatter, ChartType.area]
+}
+
+
 class NormalData(object):
     table_type_sample = None
 
@@ -34,6 +67,10 @@ class NormalData(object):
         self.entity_ids = []
         self.df_list = []
         self.entity_map_df = {}
+
+        self.entity_size = 0
+        self.row_count = 0
+        self.column_size = 0
 
         self.normalize()
 
@@ -74,6 +111,9 @@ class NormalData(object):
             else:
                 self.entity_ids = list(self.data_df.index.values)
 
+            # remove the duplicates
+            self.entity_ids = list(set(self.entity_ids))
+
             for entity_id, df_item in self.data_df.groupby(self.category_field):
                 df = df_item.copy()
                 df.reset_index(inplace=True, level=self.category_field)
@@ -88,64 +128,65 @@ class NormalData(object):
                 columns.remove(self.category_field)
                 self.entity_map_df[entity_id] = df.loc[:, columns]
 
-    def get_table_type(self):
-        entity_size = len(self.entity_ids)
-        row_count = int(len(self.data_df) / entity_size)
-        column_size = len(self.data_df.columns)
+            self.entity_size = len(self.entity_ids)
+            self.row_count = int(len(self.data_df) / self.entity_size)
+            self.column_size = len(self.data_df.columns)
 
-        if entity_size == 1:
+    def get_table_type(self):
+        if self.entity_size == 1:
             a = 'single'
         else:
             a = 'multiple'
 
-        if row_count == 1:
+        if self.row_count == 1:
             b = 'single'
         else:
             b = 'multiple'
 
-        if column_size == 1:
+        if self.column_size == 1:
             c = 'single'
         else:
             c = 'multiple'
 
         return f'{a}_{b}_{c}'
 
-    def get_intents(self):
+    def get_intents(self) -> List[IntentType]:
         table_type = TableType(self.get_table_type())
 
         # single entity
         if table_type == TableType.single_single_single:
-            return ['not_much_meaning']
+            return [IntentType.not_much_meaning]
 
         if table_type == TableType.single_single_multiple:
-            return ['compare', 'composition']
+            return [IntentType.compare_self, IntentType.composite_self]
+
         if table_type == TableType.single_multiple_single:
-            return ['compare']
+            return [IntentType.compare_self, IntentType.distribute_self]
 
         if table_type == TableType.single_multiple_multiple:
-            return ['compare']
+            return [IntentType.compare_self]
 
         # multiple entity
         if table_type == TableType.multiple_single_single:
-            return ['compare']
+            return [IntentType.compare_to_other]
 
         if table_type == TableType.multiple_single_multiple:
-            return ['compare']
+            return [IntentType.compare_to_other]
 
         if table_type == TableType.multiple_multiple_single:
-            return ['compare']
+            return [IntentType.compare_to_other]
 
         if table_type == TableType.multiple_multiple_multiple:
-            return ['compare']
+            return [IntentType.compare_to_other]
 
     @staticmethod
-    def get_charts_by_intent(intent):
-        if intent == 'compare':
-            return ['line', 'bar']
-        if intent == 'composition':
-            return ['pie']
+    def get_charts_by_intent(intent) -> List[ChartType]:
+        charts = intent_map_charts.get(IntentType(intent))
 
-        return ['line']
+        if charts is None:
+            charts = [ChartType.line, ChartType.bar, ChartType.scatter, ChartType.area]
+
+        return charts
 
     @staticmethod
     def sample(table_type: TableType = TableType.multiple_multiple_single):

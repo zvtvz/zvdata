@@ -7,6 +7,7 @@ from zvdata.api import decode_entity_id
 from zvdata.normal_data import NormalData, TableType
 from zvdata.utils.pd_utils import df_is_not_null
 from zvdata.utils.time_utils import now_time_str, TIME_FORMAT_ISO8601
+from zvt.utils.utils import to_positive_number
 
 
 def get_ui_path(name):
@@ -61,7 +62,8 @@ class Drawer(object):
                           width=None,
                           height=None,
                           title=None,
-                          keep_ui_state=True):
+                          keep_ui_state=True,
+                          need_range_selector=True):
         if keep_ui_state:
             uirevision = True
         else:
@@ -76,9 +78,8 @@ class Drawer(object):
                            yaxis=dict(
                                autorange=True,
                                fixedrange=False
-                           ),
-                           legend_orientation="h")
-        if self.normal_data.is_timeseries:
+                           ))
+        if self.normal_data.is_timeseries and need_range_selector and len(self.normal_data.data_df) > 500:
             layout.xaxis = dict(
                 rangeselector=dict(
                     buttons=list([
@@ -146,8 +147,9 @@ class Drawer(object):
                      title=None, keep_ui_state=True, **kwargs):
         data = []
         for entity_id, df in self.normal_data.entity_map_df.items():
+            _, _, code = decode_entity_id(entity_id)
             for col in df.columns:
-                trace_name = '{}_{}'.format(entity_id, col)
+                trace_name = '{}_{}'.format(code, col)
                 ydata = df.loc[:, col].values.tolist()
                 data.append(go.Scatter(x=df.index, y=ydata, mode=mode, name=trace_name, **kwargs))
 
@@ -158,8 +160,9 @@ class Drawer(object):
                  title=None, keep_ui_state=True, **kwargs):
         data = []
         for entity_id, df in self.normal_data.entity_map_df.items():
+            _, _, code = decode_entity_id(entity_id)
             for col in df.columns:
-                trace_name = '{}_{}'.format(entity_id, col)
+                trace_name = '{}_{}'.format(code, col)
                 ydata = df.loc[:, col].values.tolist()
                 data.append(go.Bar(x=df.index, y=ydata, name=trace_name, **kwargs))
 
@@ -171,7 +174,34 @@ class Drawer(object):
         data = []
         for entity_id, df in self.normal_data.entity_map_df.items():
             for _, row in df.iterrows():
+                row = row.apply(lambda x: to_positive_number(x))
                 data.append(go.Pie(name=entity_id, labels=df.columns.tolist(), values=row.tolist(), **kwargs))
+                # just support one pie now
+                # TODO: group by entity
+                break
+
+        return self.show(plotly_data=data, plotly_layout=plotly_layout, render=render,
+                         file_name=file_name, width=width,
+                         height=height, title=title, keep_ui_state=keep_ui_state)
+
+    def draw_polar(self, plotly_layout=None, render='html', file_name=None, width=None, height=None,
+                   title=None, keep_ui_state=True, **kwargs):
+        data = []
+        for entity_id, df in self.normal_data.entity_map_df.items():
+            for _, row in df.iterrows():
+                row = row.apply(lambda x: to_positive_number(x))
+
+                trace = go.Scatterpolar(
+                    r=row.to_list(),
+                    theta=df.columns.tolist(),
+                    fill='toself',
+                    name=entity_id,
+                    **kwargs
+                )
+                data.append(trace)
+                # just support one pie now
+                # TODO: group by entity
+                break
 
         return self.show(plotly_data=data, plotly_layout=plotly_layout, render=render, file_name=file_name, width=width,
                          height=height, title=title, keep_ui_state=keep_ui_state)
@@ -240,25 +270,8 @@ class Drawer(object):
             selected_rows=[],
             page_action='native',
             page_current=0,
-            page_size=10,
+            page_size=5,
         )
-
-    def draw_polar(self, plotly_layout=None, render='html', file_name=None, width=None, height=None,
-                   title=None, keep_ui_state=True, **kwargs):
-        data = []
-        for entity_id, df in self.normal_data.entity_map_df.items():
-            for _, row in df.iterrows():
-                trace = go.Scatterpolar(
-                    r=row.to_list(),
-                    theta=df.columns.tolist(),
-                    fill='toself',
-                    name=entity_id,
-                    **kwargs
-                )
-                data.append(trace)
-
-        return self.show(plotly_data=data, plotly_layout=plotly_layout, render=render, file_name=file_name, width=width,
-                         height=height, title=title, keep_ui_state=keep_ui_state)
 
 
 if __name__ == '__main__':
