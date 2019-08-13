@@ -178,3 +178,10 @@ def to_positive_number(number):
         return abs(number)
 
     return 0
+
+
+def multiple_number(number, factor):
+    try:
+        return number * factor
+    except:
+        return number
