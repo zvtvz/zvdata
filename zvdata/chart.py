@@ -7,6 +7,8 @@ from zvdata.api import decode_entity_id
 from zvdata.normal_data import NormalData, TableType
 from zvdata.utils.pd_utils import df_is_not_null
 from zvdata.utils.time_utils import now_time_str, TIME_FORMAT_ISO8601
+from zvdata.utils.utils import to_positive_number
+
 
 def get_ui_path(name):
     if name is None:
@@ -141,6 +143,12 @@ class Drawer(object):
         return self.draw_scatter(mode='lines', plotly_layout=plotly_layout, render=render, file_name=file_name,
                                  width=width, height=height, title=title, keep_ui_state=keep_ui_state, **kwargs)
 
+    def draw_area(self, plotly_layout=None, render='html', file_name=None, width=None, height=None,
+                  title=None, keep_ui_state=True, **kwargs):
+        return self.draw_scatter(mode='none', fill='tonexty', plotly_layout=plotly_layout, render=render,
+                                 file_name=file_name,
+                                 width=width, height=height, title=title, keep_ui_state=keep_ui_state, **kwargs)
+
     def draw_scatter(self, mode='markers', plotly_layout=None, render='html', file_name=None, width=None, height=None,
                      title=None, keep_ui_state=True, **kwargs):
         data = []
@@ -204,8 +212,60 @@ class Drawer(object):
         return self.show(plotly_data=data, plotly_layout=plotly_layout, render=render, file_name=file_name, width=width,
                          height=height, title=title, keep_ui_state=keep_ui_state)
 
-    def draw_histogram(self):
-        pass
+    def draw_histogram(self, plotly_layout=None, render='html', file_name=None, width=None, height=None,
+                       title=None, keep_ui_state=True, **kwargs):
+        data = []
+        annotations = []
+        for entity_id, df in self.normal_data.entity_map_df.items():
+            _, _, code = decode_entity_id(entity_id)
+
+            for col in df.columns:
+                trace_name = '{}_{}'.format(code, col)
+                x = df[col].tolist()
+                trace = go.Histogram(
+                    x=x,
+                    name=trace_name,
+                    histnorm='probability',
+                    **kwargs
+                )
+                annotation = dict(
+                    x=x[-1],
+                    y=0,
+                    xref='x',
+                    yref='y',
+                    text=f'current:{x[-1]}',
+                    showarrow=True,
+                    align='center',
+                    arrowhead=2,
+                    arrowsize=1,
+                    arrowwidth=2,
+                    # arrowcolor='#030813',
+                    # ax=-0.02,
+                    # ay=-0.02,
+                    bordercolor='#c7c7c7',
+                    borderwidth=1,
+                    opacity=0.8
+                )
+                data.append(trace)
+                annotations.append(annotation)
+            # just support one entity
+            break
+
+        if keep_ui_state:
+            uirevision = True
+        else:
+            uirevision = None
+
+        layout = go.Layout(showlegend=True,
+                           uirevision=uirevision,
+                           height=height,
+                           width=width,
+                           title=title,
+                           annotations=annotations,
+                           barmode='overlay')
+
+        return self.show(plotly_data=data, plotly_layout=layout, render=render, file_name=file_name, width=width,
+                         height=height, title=title, keep_ui_state=keep_ui_state)
 
     def draw_kline(self, plotly_layout=None, render='html', file_name=None, width=None, height=None,
                    title=None, keep_ui_state=True, **kwargs):

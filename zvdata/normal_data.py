@@ -227,3 +227,6 @@ class NormalData(object):
         dfs = index_df_with_category_xfield(df=dfs, xfield=x_field, is_timeseries=is_timeseries)
 
         return dfs
+
+    def is_empty(self):
+        return not df_is_not_null(self.data_df)
