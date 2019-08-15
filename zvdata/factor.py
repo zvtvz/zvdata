@@ -3,9 +3,10 @@ import enum
 from typing import List, Union
 
 import pandas as pd
-import plotly.graph_objs as go
 
 from zvdata.chart import Drawer
+from zvdata.domain import get_db_session, FactorDomain
+from zvdata.normal_data import NormalData
 from zvdata.reader import DataReader, DataListener
 from zvdata.sedes import Jsonable, UiComposable
 from zvdata.structs import IntervalLevel
@@ -18,12 +19,21 @@ class FactorType(enum.Enum):
     state = 'state'
 
 
-factor_registry = {}
+# factor class registry
+factor_cls_registry = {}
+
+# factor instance registry
+factor_instance_registry = {}
+
+
+def register_instance(cls, instance):
+    if cls.__name__ not in ('Factor', 'FilterFactor', 'ScoreFactor', 'StateFactor'):
+        factor_cls_registry[cls.__name__] = instance
 
 
 def register_class(target_class):
     if target_class.__name__ not in ('Factor', 'FilterFactor', 'ScoreFactor', 'StateFactor'):
-        factor_registry[target_class.__name__] = target_class
+        factor_cls_registry[target_class.__name__] = target_class
 
 
 class Meta(type):
@@ -51,7 +61,6 @@ class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
                  provider: str = 'eastmoney',
                  level: Union[str, IntervalLevel] = IntervalLevel.LEVEL_1DAY,
 
-
                  category_field: str = 'entity_id',
                  time_field: str = 'timestamp',
                  trip_timestamp: bool = True,
@@ -64,6 +73,12 @@ class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
                          end_timestamp, columns, filters, limit, provider, level,
                          category_field, time_field, trip_timestamp, auto_load)
 
+        register_instance(self.__class__, self)
+
+        # using to do db operations
+        self.session = get_db_session(provider='zvdata',
+                                      data_schema=FactorDomain)
+
         self.factor_name = type(self).__name__.lower()
 
         if columns:
@@ -74,6 +89,7 @@ class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
         self.effective_number = effective_number
 
         self.depth_df: pd.DataFrame = None
+
         self.result_df: pd.DataFrame = None
 
         self.register_data_listener(self)
@@ -102,21 +118,22 @@ class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
     def get_depth_df(self):
         return self.depth_df
 
-    def draw_depth(self, figures=[go.Scatter], modes=['lines'], value_fields=['close'], render='html', file_name=None,
-                   width=None, height=None, title=None, keep_ui_state=True):
-        chart = Drawer(category_field=self.category_field, figures=figures, modes=modes, value_fields=value_fields,
-                       render=render, file_name=file_name,
-                       width=width, height=height, title=title, keep_ui_state=keep_ui_state)
-        chart.set_data_df(self.depth_df)
-        chart.show()
+    def depth_drawer(self) -> Drawer:
+        drawer = Drawer(NormalData(df=self.depth_df, index_field=self.time_field, is_timeseries=True))
+        return drawer
 
-    def draw_result(self, figures=[go.Scatter], modes=['lines'], value_fields=['score'], render='html', file_name=None,
-                    width=None, height=None, title=None, keep_ui_state=True):
-        chart = Drawer(category_field=self.category_field, figures=figures, modes=modes, value_fields=value_fields,
-                       render=render, file_name=file_name,
-                       width=width, height=height, title=title, keep_ui_state=keep_ui_state)
-        chart.set_data_df(self.result_df)
-        chart.show()
+    def result_drawer(self) -> Drawer:
+        return Drawer(NormalData(df=self.result_df, index_field=self.time_field, is_timeseries=True))
+
+    def draw_depth(self, chart='line', plotly_layout=None, render='html', file_name=None, width=None, height=None,
+                   title=None, keep_ui_state=True, **kwargs):
+        return self.depth_drawer().draw(chart=chart, plotly_layout=plotly_layout, render=render, file_name=file_name,
+                                        width=width, height=height, title=title, keep_ui_state=keep_ui_state, **kwargs)
+
+    def draw_result(self, chart='line', plotly_layout=None, render='html', file_name=None, width=None, height=None,
+                    title=None, keep_ui_state=True, **kwargs):
+        return self.result_drawer().draw(chart=chart, plotly_layout=plotly_layout, render=render, file_name=file_name,
+                                         width=width, height=height, title=title, keep_ui_state=keep_ui_state, **kwargs)
 
     def fill_gap(self):
         if self.keep_all_timestamp:
@@ -151,6 +168,13 @@ class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
         """
         self.compute()
 
+    # TODO:
+    def persist(self):
+        pass
+
+    def load(self):
+        pass
+
 
 class FilterFactor(Factor):
     factor_type = FactorType.filter
@@ -171,7 +195,6 @@ class ScoreFactor(Factor):
                  columns: List = None, filters: List = None,
                  limit: int = None, provider: str = 'eastmoney',
                  level: Union[str, IntervalLevel] = IntervalLevel.LEVEL_1DAY,
-
 
                  category_field: str = 'entity_id',
                  time_field: str = 'timestamp',

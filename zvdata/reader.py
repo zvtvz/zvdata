@@ -238,7 +238,7 @@ class DataReader(object):
         if listener in self.data_listeners:
             self.data_listeners.remove(listener)
 
-    def drawer(self):
+    def data_drawer(self):
         # FIXME"refresh normal_data?
         self.normal_data = NormalData(df=self.data_df, category_field=self.category_field,
                                       index_field=self.time_field, is_timeseries=True)

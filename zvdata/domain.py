@@ -3,9 +3,9 @@ import logging
 import os
 from typing import List
 
-from sqlalchemy import create_engine, schema
+from sqlalchemy import create_engine, schema, Column, String, DateTime
 from sqlalchemy.engine import Engine
-from sqlalchemy.ext.declarative import DeclarativeMeta
+from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 
 from zvdata.structs import EntityMixin
@@ -40,6 +40,21 @@ entity_type_map_schema = {
 
 context = {}
 
+BusinessBase = declarative_base()
+
+
+class FactorDomain(BusinessBase):
+    __tablename__ = 'factor_domain'
+    factor_id = Column(String(length=128), primary_key=True)
+    entity_id = Column(String(length=128), primary_key=True)
+    timestamp = Column(DateTime, primary_key=True)
+    depth_data = Column(String(length=1024))
+    result_data = Column(String(length=1024))
+
+
+def init_factor_schema():
+    register_schema(providers=['zvdata'], db_name='core', schema_base=BusinessBase)
+
 
 def init_context(data_path: str, domain_module: str, register_api: bool = False) -> None:
     """
@@ -58,6 +73,8 @@ def init_context(data_path: str, domain_module: str, register_api: bool = False)
 
     if not os.path.exists(data_path):
         os.makedirs(data_path)
+
+    init_factor_schema()
 
 
 def table_name_to_domain_name(table_name: str) -> DeclarativeMeta:

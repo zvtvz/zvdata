@@ -268,11 +268,12 @@ class Drawer(object):
                          height=height, title=title, keep_ui_state=keep_ui_state)
 
     def draw_kline(self, plotly_layout=None, render='html', file_name=None, width=None, height=None,
-                   title=None, keep_ui_state=True, **kwargs):
+                   title=None, keep_ui_state=True, indicators=[], **kwargs):
         data = []
         for entity_id, df in self.normal_data.entity_map_df.items():
-            entity_type, _, _ = decode_entity_id(entity_id)
-            trace_name = '{}_kdata'.format(entity_id)
+            entity_type, _, code = decode_entity_id(entity_id)
+
+            trace_name = '{}_kdata'.format(code)
 
             if entity_type == 'stock':
                 open = df.loc[:, 'qfq_open']
@@ -287,6 +288,13 @@ class Drawer(object):
 
             data.append(
                 go.Candlestick(x=df.index, open=open, close=close, low=low, high=high, name=trace_name, **kwargs))
+
+            # append indicators
+            for indicator in indicators:
+                if indicator in df.columns:
+                    trace_name = '{}_{}'.format(code, indicator)
+                    ydata = df.loc[:, indicator].values.tolist()
+                    data.append(go.Scatter(x=df.index, y=ydata, mode='lines', name=trace_name))
 
         return self.show(plotly_data=data, plotly_layout=plotly_layout, render=render, file_name=file_name, width=width,
                          height=height, title=title, keep_ui_state=keep_ui_state)
