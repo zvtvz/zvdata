@@ -58,6 +58,7 @@ class DataReader(object):
                  end_timestamp: Union[str, pd.Timestamp] = '2019-06-23',
                  columns: List = None,
                  filters: List = None,
+                 order: object = None,
                  limit: int = None,
                  provider: str = 'eastmoney',
                  level: IntervalLevel = IntervalLevel.LEVEL_1DAY,
@@ -92,6 +93,7 @@ class DataReader(object):
 
         self.provider = provider
         self.filters = filters
+        self.order = order
         self.limit = limit
         if level:
             self.level = IntervalLevel(level)
@@ -129,7 +131,8 @@ class DataReader(object):
             self.data_df = get_data(data_schema=self.data_schema, entity_ids=self.entity_ids,
                                     provider=self.provider, columns=self.columns,
                                     start_timestamp=self.start_timestamp,
-                                    end_timestamp=self.end_timestamp, filters=self.filters, limit=self.limit,
+                                    end_timestamp=self.end_timestamp, filters=self.filters, order=self.order,
+                                    limit=self.limit,
                                     level=self.level,
                                     time_field=self.time_field,
                                     index=self.time_field)
@@ -137,7 +140,8 @@ class DataReader(object):
             self.data_df = get_data(data_schema=self.data_schema, codes=self.codes,
                                     provider=self.provider, columns=self.columns,
                                     start_timestamp=self.start_timestamp,
-                                    end_timestamp=self.end_timestamp, filters=self.filters, limit=self.limit,
+                                    end_timestamp=self.end_timestamp, filters=self.filters, order=self.order,
+                                    limit=self.limit,
                                     level=self.level,
                                     time_field=self.time_field,
                                     index=self.time_field)

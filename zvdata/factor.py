@@ -57,6 +57,7 @@ class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
                  end_timestamp: Union[str, pd.Timestamp] = None,
                  columns: List = None,
                  filters: List = None,
+                 order: object = None,
                  limit: int = None,
                  provider: str = 'eastmoney',
                  level: Union[str, IntervalLevel] = IntervalLevel.LEVEL_1DAY,
@@ -73,7 +74,7 @@ class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
             self.factors = [item.key for item in columns]
 
         super().__init__(data_schema, entity_ids, entity_type, exchanges, codes, the_timestamp, start_timestamp,
-                         end_timestamp, columns, filters, limit, provider, level,
+                         end_timestamp, columns, filters, order, limit, provider, level,
                          category_field, time_field, trip_timestamp, auto_load)
 
         register_instance(self.__class__, self)
@@ -192,7 +193,9 @@ class ScoreFactor(Factor):
                  the_timestamp: Union[str, pd.Timestamp] = None,
                  start_timestamp: Union[str, pd.Timestamp] = None,
                  end_timestamp: Union[str, pd.Timestamp] = None,
-                 columns: List = None, filters: List = None,
+                 columns: List = None,
+                 filters: List = None,
+                 order: object = None,
                  limit: int = None, provider: str = 'eastmoney',
                  level: Union[str, IntervalLevel] = IntervalLevel.LEVEL_1DAY,
 
@@ -216,7 +219,7 @@ class ScoreFactor(Factor):
         self.breadth_computing_param = breadth_computing_param
 
         super().__init__(data_schema, entity_ids, entity_type, exchanges, codes, the_timestamp, start_timestamp,
-                         end_timestamp, columns, filters, limit, provider, level,
+                         end_timestamp, columns, filters, order, limit, provider, level,
                          category_field, time_field, trip_timestamp, auto_load, keep_all_timestamp, fill_method,
                          effective_number)
 
