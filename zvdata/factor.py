@@ -64,11 +64,14 @@ class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
                  category_field: str = 'entity_id',
                  time_field: str = 'timestamp',
                  trip_timestamp: bool = True,
-                 auto_load: bool = False,
+                 auto_load: bool = True,
                  # child added arguments
                  keep_all_timestamp: bool = False,
                  fill_method: str = 'ffill',
                  effective_number: int = 10) -> None:
+        if columns:
+            self.factors = [item.key for item in columns]
+
         super().__init__(data_schema, entity_ids, entity_type, exchanges, codes, the_timestamp, start_timestamp,
                          end_timestamp, columns, filters, limit, provider, level,
                          category_field, time_field, trip_timestamp, auto_load)
@@ -80,9 +83,6 @@ class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
                                       data_schema=FactorDomain)
 
         self.factor_name = type(self).__name__.lower()
-
-        if columns:
-            self.factors = [item.key for item in self.columns]
 
         self.keep_all_timestamp = keep_all_timestamp
         self.fill_method = fill_method
@@ -125,14 +125,14 @@ class Factor(DataReader, DataListener, Jsonable, UiComposable, metaclass=Meta):
     def result_drawer(self) -> Drawer:
         return Drawer(NormalData(df=self.result_df, index_field=self.time_field, is_timeseries=True))
 
-    def draw_depth(self, chart='line', plotly_layout=None, render='html', file_name=None, width=None, height=None,
+    def draw_depth(self, chart='line', plotly_layout=None, annotation_df=None,render='html', file_name=None, width=None, height=None,
                    title=None, keep_ui_state=True, **kwargs):
-        return self.depth_drawer().draw(chart=chart, plotly_layout=plotly_layout, render=render, file_name=file_name,
+        return self.depth_drawer().draw(chart=chart, plotly_layout=plotly_layout, annotation_df=annotation_df,render=render, file_name=file_name,
                                         width=width, height=height, title=title, keep_ui_state=keep_ui_state, **kwargs)
 
-    def draw_result(self, chart='line', plotly_layout=None, render='html', file_name=None, width=None, height=None,
+    def draw_result(self, chart='line', plotly_layout=None, annotation_df=None,render='html', file_name=None, width=None, height=None,
                     title=None, keep_ui_state=True, **kwargs):
-        return self.result_drawer().draw(chart=chart, plotly_layout=plotly_layout, render=render, file_name=file_name,
+        return self.result_drawer().draw(chart=chart, plotly_layout=plotly_layout, annotation_df=annotation_df,render=render, file_name=file_name,
                                          width=width, height=height, title=title, keep_ui_state=keep_ui_state, **kwargs)
 
     def fill_gap(self):
@@ -199,7 +199,7 @@ class ScoreFactor(Factor):
                  category_field: str = 'entity_id',
                  time_field: str = 'timestamp',
                  trip_timestamp: bool = True,
-                 auto_load: bool = False,
+                 auto_load: bool = True,
                  keep_all_timestamp: bool = False,
                  fill_method: str = 'ffill',
                  effective_number: int = 10,

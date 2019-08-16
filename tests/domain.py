@@ -10,7 +10,7 @@ from zvdata.domain import EntityMixin, register_schema, init_context, register_a
 from zvdata.structs import Mixin
 
 DATA_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'datasample'))
-init_context(data_path=DATA_PATH, domain_module='tests.domain', register_api=True)
+init_context(data_path=DATA_PATH, ui_path=DATA_PATH, domain_module='tests.domain', register_api=True)
 
 # define the db
 MetaBase = declarative_base()

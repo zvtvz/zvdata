@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
+import os
+
 import dash_table
 import plotly
 import plotly.graph_objs as go
 
 from zvdata.api import decode_entity_id
+from zvdata.domain import context
 from zvdata.normal_data import NormalData, TableType
 from zvdata.utils.pd_utils import df_is_not_null
 from zvdata.utils.time_utils import now_time_str, TIME_FORMAT_ISO8601
@@ -12,8 +15,8 @@ from zvdata.utils.utils import to_positive_number
 
 def get_ui_path(name):
     if name is None:
-        name = '{}.html'.format(now_time_str(fmt=TIME_FORMAT_ISO8601))
-    return '{}.html'.format(name)
+        return os.path.join(context['ui_path'], '{}.html'.format(now_time_str(fmt=TIME_FORMAT_ISO8601)))
+    return os.path.join(context['ui_path'], f'{name}.html')
 
 
 class Drawer(object):
@@ -109,10 +112,14 @@ class Drawer(object):
             )
         return layout
 
-    def show(self, plotly_data, plotly_layout=None, render='html', file_name=None, width=None, height=None, title=None,
-             keep_ui_state=True):
+    def show(self, plotly_data, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None,
+             height=None, title=None, keep_ui_state=True):
         if plotly_layout is None:
             plotly_layout = self.get_plotly_layout(width=width, height=height, title=title, keep_ui_state=keep_ui_state)
+
+        # TODO:better way to add annotation
+        if annotation_df:
+            self.normal_data.annotation_df = annotation_df
 
         if render == 'html':
             plotly.offline.plot(figure_or_data={'data': plotly_data,
@@ -129,27 +136,32 @@ class Drawer(object):
         else:
             return plotly_data, plotly_layout
 
-    def draw(self, chart: str, plotly_layout=None, render='html', file_name=None, width=None, height=None,
+    def draw(self, chart: str, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None,
+             height=None,
              title=None, keep_ui_state=True, **kwargs):
 
         func_name = f'self.draw_{chart}'
         draw_func = eval(func_name)
 
-        return draw_func(plotly_layout=plotly_layout, render=render, file_name=file_name, width=width, height=height,
+        return draw_func(plotly_layout=plotly_layout, annotation_df=annotation_df, render=render, file_name=file_name,
+                         width=width, height=height,
                          title=title, keep_ui_state=keep_ui_state, **kwargs)
 
-    def draw_line(self, plotly_layout=None, render='html', file_name=None, width=None, height=None,
+    def draw_line(self, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None, height=None,
                   title=None, keep_ui_state=True, **kwargs):
-        return self.draw_scatter(mode='lines', plotly_layout=plotly_layout, render=render, file_name=file_name,
-                                 width=width, height=height, title=title, keep_ui_state=keep_ui_state, **kwargs)
-
-    def draw_area(self, plotly_layout=None, render='html', file_name=None, width=None, height=None,
-                  title=None, keep_ui_state=True, **kwargs):
-        return self.draw_scatter(mode='none', fill='tonexty', plotly_layout=plotly_layout, render=render,
+        return self.draw_scatter(mode='lines', plotly_layout=plotly_layout, annotation_df=annotation_df, render=render,
                                  file_name=file_name,
                                  width=width, height=height, title=title, keep_ui_state=keep_ui_state, **kwargs)
 
-    def draw_scatter(self, mode='markers', plotly_layout=None, render='html', file_name=None, width=None, height=None,
+    def draw_area(self, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None, height=None,
+                  title=None, keep_ui_state=True, **kwargs):
+        return self.draw_scatter(mode='none', fill='tonexty', plotly_layout=plotly_layout, annotation_df=annotation_df,
+                                 render=render,
+                                 file_name=file_name,
+                                 width=width, height=height, title=title, keep_ui_state=keep_ui_state, **kwargs)
+
+    def draw_scatter(self, mode='markers', plotly_layout=None, annotation_df=None, render='html', file_name=None,
+                     width=None, height=None,
                      title=None, keep_ui_state=True, **kwargs):
         data = []
         for entity_id, df in self.normal_data.entity_map_df.items():
@@ -159,10 +171,12 @@ class Drawer(object):
                 ydata = df.loc[:, col].values.tolist()
                 data.append(go.Scatter(x=df.index, y=ydata, mode=mode, name=trace_name, **kwargs))
 
-        return self.show(plotly_data=data, plotly_layout=plotly_layout, render=render, file_name=file_name, width=width,
+        return self.show(plotly_data=data, plotly_layout=plotly_layout, annotation_df=annotation_df, render=render,
+                         file_name=file_name, width=width,
                          height=height, title=title, keep_ui_state=keep_ui_state)
 
-    def draw_bar(self, x='columns', plotly_layout=None, render='html', file_name=None, width=None, height=None,
+    def draw_bar(self, x='columns', plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None,
+                 height=None,
                  title=None, keep_ui_state=True, **kwargs):
         data = []
         for entity_id, df in self.normal_data.entity_map_df.items():
@@ -172,10 +186,11 @@ class Drawer(object):
                 ydata = df.loc[:, col].values.tolist()
                 data.append(go.Bar(x=df.index, y=ydata, name=trace_name, **kwargs))
 
-        return self.show(plotly_data=data, plotly_layout=plotly_layout, render=render, file_name=file_name, width=width,
+        return self.show(plotly_data=data, plotly_layout=plotly_layout, annotation_df=annotation_df, render=render,
+                         file_name=file_name, width=width,
                          height=height, title=title, keep_ui_state=keep_ui_state)
 
-    def draw_pie(self, plotly_layout=None, render='html', file_name=None, width=None, height=None,
+    def draw_pie(self, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None, height=None,
                  title=None, keep_ui_state=True, **kwargs):
         data = []
         for entity_id, df in self.normal_data.entity_map_df.items():
@@ -186,11 +201,11 @@ class Drawer(object):
                 # TODO: group by entity
                 break
 
-        return self.show(plotly_data=data, plotly_layout=plotly_layout, render=render,
+        return self.show(plotly_data=data, plotly_layout=plotly_layout, annotation_df=annotation_df, render=render,
                          file_name=file_name, width=width,
                          height=height, title=title, keep_ui_state=keep_ui_state)
 
-    def draw_polar(self, plotly_layout=None, render='html', file_name=None, width=None, height=None,
+    def draw_polar(self, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None, height=None,
                    title=None, keep_ui_state=True, **kwargs):
         data = []
         for entity_id, df in self.normal_data.entity_map_df.items():
@@ -209,10 +224,12 @@ class Drawer(object):
                 # TODO: group by entity
                 break
 
-        return self.show(plotly_data=data, plotly_layout=plotly_layout, render=render, file_name=file_name, width=width,
+        return self.show(plotly_data=data, plotly_layout=plotly_layout, annotation_df=annotation_df, render=render,
+                         file_name=file_name, width=width,
                          height=height, title=title, keep_ui_state=keep_ui_state)
 
-    def draw_histogram(self, plotly_layout=None, render='html', file_name=None, width=None, height=None,
+    def draw_histogram(self, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None,
+                       height=None,
                        title=None, keep_ui_state=True, **kwargs):
         data = []
         annotations = []
@@ -267,7 +284,7 @@ class Drawer(object):
         return self.show(plotly_data=data, plotly_layout=layout, render=render, file_name=file_name, width=width,
                          height=height, title=title, keep_ui_state=keep_ui_state)
 
-    def draw_kline(self, plotly_layout=None, render='html', file_name=None, width=None, height=None,
+    def draw_kline(self, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None, height=None,
                    title=None, keep_ui_state=True, indicators=[], **kwargs):
         data = []
         for entity_id, df in self.normal_data.entity_map_df.items():
@@ -296,10 +313,11 @@ class Drawer(object):
                     ydata = df.loc[:, indicator].values.tolist()
                     data.append(go.Scatter(x=df.index, y=ydata, mode='lines', name=trace_name))
 
-        return self.show(plotly_data=data, plotly_layout=plotly_layout, render=render, file_name=file_name, width=width,
+        return self.show(plotly_data=data, plotly_layout=plotly_layout, annotation_df=annotation_df, render=render,
+                         file_name=file_name, width=width,
                          height=height, title=title, keep_ui_state=keep_ui_state)
 
-    def draw_table(self, plotly_layout=None, render='html', file_name=None, width=None, height=None,
+    def draw_table(self, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None, height=None,
                    title=None, keep_ui_state=True, **kwargs):
         cols = self.normal_data.data_df.index.names + self.normal_data.data_df.columns.tolist()
 
@@ -317,7 +335,8 @@ class Drawer(object):
                        align='left'),
             **kwargs)
 
-        return self.show(plotly_data=data, plotly_layout=plotly_layout, render=render, file_name=file_name, width=width,
+        return self.show(plotly_data=data, plotly_layout=plotly_layout, annotation_df=annotation_df, render=render,
+                         file_name=file_name, width=width,
                          height=height, title=title, keep_ui_state=keep_ui_state)
 
     def draw_data_table(self, id=None):

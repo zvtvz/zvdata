@@ -57,7 +57,7 @@ class NormalData(object):
     table_type_sample = None
 
     def __init__(self, df, annotation_df=None, category_field='entity_id', index_field='timestamp',
-                 is_timeseries: bool = True) -> None:
+                 is_timeseries: bool = True, fill_gap: bool = False) -> None:
         self.data_df = df
         self.annotation_df: pd.DataFrame = annotation_df
         self.category_field = category_field

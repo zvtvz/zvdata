@@ -93,7 +93,10 @@ class DataReader(object):
         self.provider = provider
         self.filters = filters
         self.limit = limit
-        self.level = IntervalLevel(level)
+        if level:
+            self.level = IntervalLevel(level)
+        else:
+            self.level = level
         self.category_field = category_field
         self.time_field = time_field
         self.trip_timestamp = trip_timestamp
@@ -238,7 +241,7 @@ class DataReader(object):
         if listener in self.data_listeners:
             self.data_listeners.remove(listener)
 
-    def data_drawer(self):
+    def data_drawer(self) -> Drawer:
         # FIXME"refresh normal_data?
         self.normal_data = NormalData(df=self.data_df, category_field=self.category_field,
                                       index_field=self.time_field, is_timeseries=True)
