@@ -83,6 +83,7 @@ class DataReader(object):
         self.exchanges = exchanges
         if codes:
             if type(codes) == str:
+                codes = codes.replace(' ', '')
                 if codes.startswith('[') and codes.endswith(']'):
                     codes = json.loads(codes)
                 else:

@@ -28,7 +28,7 @@ factor_instance_registry = {}
 
 def register_instance(cls, instance):
     if cls.__name__ not in ('Factor', 'FilterFactor', 'ScoreFactor', 'StateFactor'):
-        factor_cls_registry[cls.__name__] = instance
+        factor_instance_registry[cls.__name__] = instance
 
 
 def register_class(target_class):
