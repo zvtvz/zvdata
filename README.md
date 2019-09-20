@@ -5,15 +5,14 @@
 [![codecov.io](https://codecov.io/github/zvtvz/zvdata/coverage.svg?branch=master)](https://codecov.io/github/zvtvz/zvdata)
 [![HitCount](http://hits.dwyl.io/zvtvz/zvdata.svg)](http://hits.dwyl.io/zvtvz/zvdata)
 
-**Read this in other languages: [中文](README-cn.md).**  
+**其他语言: [english](README-en.md).**  
 
-zvdata is an extendable library for recording and analyzing data
+zvdata是一个可扩展的记录数据和分析数据的库.
 
-# how to use
+# 如何使用
 
-this's abstract part of [zvt](https://github.com/zvtvz/zvt),it could be used to recording,calculating,visualizing the data in a funny way
+this's abstract part of zvt,it could be used to recording,calculating,visualizing the data in a funny way
+这是[zvt](https://github.com/zvtvz/zvt)抽象出来的通用库,可以用一种有趣的方式来记录,计算和可视化数据.
 
-# Contact information
-QQ group:300911873  
-if you like this project,please star it and tell me your github user name when joining the qq group  
-check http://www.imqq.com/html/FAQ_en/html/Discussions_3.html
+# 联系方式  
+微信　foolcage
