@@ -72,10 +72,24 @@ def pct_to_float(the_str, default=None):
 
 
 def json_callback_param(the_str):
-    return eval(the_str[the_str.index("(") + 1:the_str.index(")")])
+    json_str = the_str[the_str.index("(") + 1:the_str.index(")")].replace('null', 'None')
+    return eval(json_str)
 
 
 def fill_domain_from_dict(the_domain, the_dict: dict, the_map: dict, default_func=lambda x: x):
+    """
+    use field map and related func to fill properties from the dict to the domain
+
+
+    :param the_domain:
+    :type the_domain: DeclarativeMeta
+    :param the_dict:
+    :type the_dict: dict
+    :param the_map:
+    :type the_map: dict
+    :param default_func:
+    :type default_func: function
+    """
     if not the_map:
         the_map = {}
         for k in the_dict:
@@ -100,7 +114,11 @@ def fill_domain_from_dict(the_domain, the_dict: dict, the_map: dict, default_fun
                 exec('the_domain.{}=result_value'.format(k))
 
 
-def init_process_log(file_name, log_dir):
+def init_process_log(file_name, log_dir=None):
+    if not log_dir:
+        from zvdata.domain import context
+        log_dir = context['log_path']
+
     root_logger = logging.getLogger()
 
     # reset the handlers
@@ -185,3 +203,14 @@ def multiple_number(number, factor):
         return number * factor
     except:
         return number
+
+
+def add_to_map_list(the_map, key, value):
+    result = []
+    if key in the_map:
+        result = the_map[key]
+    else:
+        the_map[key] = result
+
+    if value not in result:
+        result.append(value)

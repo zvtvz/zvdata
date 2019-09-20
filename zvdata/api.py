@@ -4,14 +4,15 @@ from typing import List, Union
 import pandas as pd
 from sqlalchemy import func, exists, and_
 from sqlalchemy.orm import Query, Session
-from zvdata.domain import get_db_name, get_db_session, get_db_engine, entity_type_map_schema, global_providers
-from zvdata.structs import IntervalLevel
+
+from zvdata import IntervalLevel
+from zvdata.domain import get_db_name, get_db_session, get_db_engine, global_entity_schema, global_providers
 from zvdata.utils.pd_utils import df_is_not_null, index_df
 from zvdata.utils.time_utils import to_pd_timestamp
 
 
 def get_entity_schema(entity_type):
-    return entity_type_map_schema[entity_type]
+    return global_entity_schema[entity_type]
 
 
 def common_filter(query: Query,
@@ -44,6 +45,7 @@ def common_filter(query: Query,
 
 
 def get_data(data_schema,
+             ids: List[str] = None,
              entity_ids: List[str] = None,
              entity_id: str = None,
              codes: List[str] = None,
@@ -64,64 +66,58 @@ def get_data(data_schema,
     assert provider is not None
     assert provider in global_providers
 
-    local_session = False
     if not session:
         session = get_db_session(provider=provider, data_schema=data_schema)
-        local_session = True
 
-    try:
-        time_col = eval('data_schema.{}'.format(time_field))
+    time_col = eval('data_schema.{}'.format(time_field))
 
-        if columns:
-            # support str
-            if type(columns[0]) == str:
-                columns_ = []
-                for col in columns:
-                    columns_.append(eval('data_schema.{}'.format(col)))
-                columns = columns_
+    if columns:
+        # support str
+        if type(columns[0]) == str:
+            columns_ = []
+            for col in columns:
+                columns_.append(eval('data_schema.{}'.format(col)))
+            columns = columns_
 
-            if time_col not in columns:
-                columns.append(time_col)
-            query = session.query(*columns)
-        else:
-            query = session.query(data_schema)
+        if time_col not in columns:
+            columns.append(time_col)
+        query = session.query(*columns)
+    else:
+        query = session.query(data_schema)
 
-        if entity_id:
-            query = query.filter(data_schema.entity_id == entity_id)
-        if codes:
-            query = query.filter(data_schema.code.in_(codes))
-        if entity_ids:
-            query = query.filter(data_schema.entity_id.in_(entity_ids))
+    if entity_id:
+        query = query.filter(data_schema.entity_id == entity_id)
+    if codes:
+        query = query.filter(data_schema.code.in_(codes))
+    if entity_ids:
+        query = query.filter(data_schema.entity_id.in_(entity_ids))
+    if ids:
+        query = query.filter(data_schema.id.in_(ids))
 
-        # we always store different level in different schema,the level param is not useful now
-        if level:
-            try:
-                # some schema has no level,just ignore it
-                data_schema.level
-                if type(level) == IntervalLevel:
-                    level = level.value
-                query = query.filter(data_schema.level == level)
-            except Exception as e:
-                pass
+    # we always store different level in different schema,the level param is not useful now
+    if level:
+        try:
+            # some schema has no level,just ignore it
+            data_schema.level
+            if type(level) == IntervalLevel:
+                level = level.value
+            query = query.filter(data_schema.level == level)
+        except Exception as e:
+            pass
 
-        query = common_filter(query, data_schema=data_schema, start_timestamp=start_timestamp,
-                              end_timestamp=end_timestamp, filters=filters, order=order, limit=limit,
-                              time_field=time_field)
+    query = common_filter(query, data_schema=data_schema, start_timestamp=start_timestamp,
+                          end_timestamp=end_timestamp, filters=filters, order=order, limit=limit,
+                          time_field=time_field)
 
-        if return_type == 'df':
-            df = pd.read_sql(query.statement, query.session.bind)
-            if df_is_not_null(df):
-                return index_df(df, drop=False, index=index, index_is_time=index_is_time)
-            return df
-        elif return_type == 'domain':
-            return query.all()
-        elif return_type == 'dict':
-            return [item.__dict__ for item in query.all()]
-    except Exception:
-        raise
-    finally:
-        if local_session:
-            session.close()
+    if return_type == 'df':
+        df = pd.read_sql(query.statement, query.session.bind)
+        if df_is_not_null(df):
+            return index_df(df, drop=False, index=index, index_is_time=index_is_time)
+        return df
+    elif return_type == 'domain':
+        return query.all()
+    elif return_type == 'dict':
+        return [item.__dict__ for item in query.all()]
 
 
 def data_exist(session, schema, id):
@@ -140,23 +136,14 @@ def get_count(data_schema, filters=None, session=None):
 
 
 def get_group(provider, data_schema, column, group_func=func.count, session=None):
-    local_session = False
     if not session:
-        store_category = get_db_name(data_schema)
-        session = get_db_session(provider=provider, store_category=store_category)
-        local_session = True
-    try:
-        if group_func:
-            query = session.query(column, group_func(column)).group_by(column)
-        else:
-            query = session.query(column).group_by(column)
-        df = pd.read_sql(query.statement, query.session.bind)
-        return df
-    except Exception:
-        raise
-    finally:
-        if local_session:
-            session.close()
+        session = get_db_session(provider=provider, data_schema=data_schema)
+    if group_func:
+        query = session.query(column, group_func(column)).group_by(column)
+    else:
+        query = session.query(column).group_by(column)
+    df = pd.read_sql(query.statement, query.session.bind)
+    return df
 
 
 def decode_entity_id(entity_id: str):
@@ -167,12 +154,37 @@ def decode_entity_id(entity_id: str):
     return entity_type, exchange, code
 
 
-def df_to_db(df, data_schema, provider):
+def df_to_db(df, data_schema, provider, force=False):
+    if not df_is_not_null(df):
+        return
+
     db_engine = get_db_engine(provider, data_schema=data_schema)
 
-    current = get_data(data_schema=data_schema, columns=[data_schema.id], provider=provider)
-    if df_is_not_null(current):
-        df = df[~df['id'].isin(current['id'])]
+    if force:
+        session = get_db_session(provider=provider, data_schema=data_schema)
+        ids = df["id"].tolist()
+        # count = len(ids)
+        # start = 0
+        # while True:
+        #     end = min(count, start + 5000)
+        #     sql = f'delete from {data_schema.__tablename__} where id in {tuple(ids[start:end])}'
+        #     session.execute(sql)
+        #     session.commit()
+        #     if end == count:
+        #         break
+        #     start = end
+        if len(ids) == 1:
+            sql = f'delete from {data_schema.__tablename__} where id = {ids[0]}'
+        else:
+            sql = f'delete from {data_schema.__tablename__} where id in {tuple(ids)}'
+
+        session.execute(sql)
+        session.commit()
+
+    else:
+        current = get_data(data_schema=data_schema, columns=[data_schema.id], provider=provider)
+        if df_is_not_null(current):
+            df = df[~df['id'].isin(current['id'])]
 
     df.to_sql(data_schema.__tablename__, db_engine, index=False, if_exists='append')
 
@@ -214,7 +226,7 @@ def get_entities(
     assert provider in global_providers
 
     if not entity_schema:
-        entity_schema = entity_type_map_schema[entity_type]
+        entity_schema = global_entity_schema[entity_type]
 
     if not order:
         order = entity_schema.code.asc()

@@ -66,7 +66,8 @@ class Drawer(object):
                           height=None,
                           title=None,
                           keep_ui_state=True,
-                          need_range_selector=True):
+                          need_range_selector=True,
+                          **layout_params):
         if keep_ui_state:
             uirevision = True
         else:
@@ -80,10 +81,13 @@ class Drawer(object):
                            annotations=self.get_plotly_annotations(),
                            yaxis=dict(
                                autorange=True,
-                               fixedrange=False
-                           ))
+                               fixedrange=False,
+                               zeroline=False
+                           ),
+                           **layout_params)
         if self.normal_data.is_timeseries and need_range_selector and len(self.normal_data.data_df) > 500:
             layout.xaxis = dict(
+                domain=[0.2, 0.9],
                 rangeselector=dict(
                     buttons=list([
                         dict(count=1,
@@ -113,9 +117,10 @@ class Drawer(object):
         return layout
 
     def show(self, plotly_data, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None,
-             height=None, title=None, keep_ui_state=True):
+             height=None, title=None, keep_ui_state=True, **layout_params):
         if plotly_layout is None:
-            plotly_layout = self.get_plotly_layout(width=width, height=height, title=title, keep_ui_state=keep_ui_state)
+            plotly_layout = self.get_plotly_layout(width=width, height=height, title=title, keep_ui_state=keep_ui_state,
+                                                   **layout_params)
 
         # TODO:better way to add annotation
         if annotation_df:
@@ -124,8 +129,7 @@ class Drawer(object):
         if render == 'html':
             plotly.offline.plot(figure_or_data={'data': plotly_data,
                                                 'layout': plotly_layout
-                                                },
-                                filename=get_ui_path(file_name))
+                                                }, filename=get_ui_path(file_name))
 
         elif render == 'notebook':
             plotly.offline.init_notebook_mode(connected=True)
@@ -137,61 +141,162 @@ class Drawer(object):
             return plotly_data, plotly_layout
 
     def draw(self, chart: str, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None,
-             height=None,
-             title=None, keep_ui_state=True, **kwargs):
+             height=None, title=None, keep_ui_state=True, property_map=None, **kwargs):
 
         func_name = f'self.draw_{chart}'
         draw_func = eval(func_name)
 
         return draw_func(plotly_layout=plotly_layout, annotation_df=annotation_df, render=render, file_name=file_name,
-                         width=width, height=height,
-                         title=title, keep_ui_state=keep_ui_state, **kwargs)
+                         width=width, height=height, title=title, keep_ui_state=keep_ui_state,
+                         property_map=property_map, **kwargs)
+
+    def draw_compare(self, chart: str, plotly_layout=None, annotation_df=None, render='html', file_name=None,
+                     width=None, height=None, title=None, keep_ui_state=True, property_map=None, **kwargs):
+        data = []
+        layout_params = {}
+        for entity_id, df in self.normal_data.entity_map_df.items():
+            _, _, code = decode_entity_id(entity_id)
+            for col in df.columns:
+                trace_name = '{}_{}'.format(code, col)
+                ydata = df.loc[:, col].values.tolist()
+
+                # set y axis
+                yaxis, layout, col_chart = self.get_yaxis_layout_chart(col, property_map)
+                if yaxis and layout:
+                    layout_params[f'yaxis{yaxis[-1]}'] = layout
+
+                if not col_chart:
+                    col_chart = chart
+
+                if col_chart == 'line':
+                    trace = go.Scatter(x=df.index, y=ydata, mode='lines', name=trace_name, yaxis=yaxis, **kwargs)
+                elif col_chart == 'scatter':
+                    trace = go.Scatter(x=df.index, y=ydata, mode='markers', name=trace_name, yaxis=yaxis, **kwargs)
+                elif col_chart == 'area':
+                    trace = go.Scatter(x=df.index, y=ydata, mode='none', fill='tonexty', name=trace_name, yaxis=yaxis,
+                                       **kwargs)
+                elif col_chart == 'bar':
+                    trace = go.Bar(x=df.index, y=ydata, name=trace_name, yaxis=yaxis, **kwargs)
+
+                data.append(trace)
+
+        return self.show(plotly_data=data, plotly_layout=plotly_layout, annotation_df=annotation_df, render=render,
+                         file_name=file_name, width=width,
+                         height=height, title=title, keep_ui_state=keep_ui_state, **layout_params)
 
     def draw_line(self, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None, height=None,
-                  title=None, keep_ui_state=True, **kwargs):
+                  title=None, keep_ui_state=True, property_map=None, **kwargs):
         return self.draw_scatter(mode='lines', plotly_layout=plotly_layout, annotation_df=annotation_df, render=render,
                                  file_name=file_name,
-                                 width=width, height=height, title=title, keep_ui_state=keep_ui_state, **kwargs)
+                                 width=width, height=height, title=title, keep_ui_state=keep_ui_state,
+                                 property_map=property_map, **kwargs)
 
     def draw_area(self, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None, height=None,
-                  title=None, keep_ui_state=True, **kwargs):
+                  title=None, keep_ui_state=True, property_map=None, **kwargs):
         return self.draw_scatter(mode='none', fill='tonexty', plotly_layout=plotly_layout, annotation_df=annotation_df,
                                  render=render,
                                  file_name=file_name,
-                                 width=width, height=height, title=title, keep_ui_state=keep_ui_state, **kwargs)
+                                 width=width, height=height, title=title, keep_ui_state=keep_ui_state,
+                                 property_map=property_map, **kwargs)
+
+    def get_yaxis_layout_chart(self, col, property_map):
+        yaxis = None
+        chart = None
+        if property_map:
+            props = property_map.get(col)
+            if props:
+                if props.get('y_axis') != 'y1':
+                    yaxis = props.get('y_axis')
+
+                chart = props.get('chart')
+
+        layout = None
+
+        if yaxis:
+            i = int(yaxis[-1])
+            if i % 2 == 1:
+                layout = dict(
+                    title=col,
+                    titlefont=dict(
+                        color="#ff7f0e"
+                    ),
+                    tickfont=dict(
+                        color="#ff7f0e"
+                    ),
+                    autorange=True,
+                    fixedrange=False,
+                    zeroline=False,
+                    anchor="free",
+                    overlaying="y",
+                    side="left",
+                    position=0.05 * (i - 1)
+                )
+            else:
+                layout = dict(
+                    title=col,
+                    titlefont=dict(
+                        color="#d62728"
+                    ),
+                    tickfont=dict(
+                        color="#d62728"
+                    ),
+                    autorange=True,
+                    fixedrange=False,
+                    zeroline=False,
+                    anchor="free",
+                    overlaying="y",
+                    side="right",
+                    position=1.0 - 0.05 * (i - 1)
+                )
+
+        return yaxis, layout, chart
 
     def draw_scatter(self, mode='markers', plotly_layout=None, annotation_df=None, render='html', file_name=None,
                      width=None, height=None,
-                     title=None, keep_ui_state=True, **kwargs):
+                     title=None, keep_ui_state=True, property_map=None, **kwargs):
         data = []
+        layout_params = {}
         for entity_id, df in self.normal_data.entity_map_df.items():
             _, _, code = decode_entity_id(entity_id)
             for col in df.columns:
                 trace_name = '{}_{}'.format(code, col)
                 ydata = df.loc[:, col].values.tolist()
-                data.append(go.Scatter(x=df.index, y=ydata, mode=mode, name=trace_name, **kwargs))
+
+                # set y axis
+                yaxis, layout = self.get_yaxis_layout_chart(col, property_map)
+                if yaxis and layout:
+                    layout_params[f'yaxis{yaxis[-1]}'] = layout
+
+                data.append(go.Scatter(x=df.index, y=ydata, mode=mode, name=trace_name, yaxis=yaxis, **kwargs))
 
         return self.show(plotly_data=data, plotly_layout=plotly_layout, annotation_df=annotation_df, render=render,
                          file_name=file_name, width=width,
-                         height=height, title=title, keep_ui_state=keep_ui_state)
+                         height=height, title=title, keep_ui_state=keep_ui_state, **layout_params)
 
     def draw_bar(self, x='columns', plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None,
                  height=None,
-                 title=None, keep_ui_state=True, **kwargs):
+                 title=None, keep_ui_state=True, property_map=None, **kwargs):
         data = []
+        layout_params = {}
         for entity_id, df in self.normal_data.entity_map_df.items():
             _, _, code = decode_entity_id(entity_id)
             for col in df.columns:
                 trace_name = '{}_{}'.format(code, col)
                 ydata = df.loc[:, col].values.tolist()
-                data.append(go.Bar(x=df.index, y=ydata, name=trace_name, **kwargs))
+
+                # set y axis
+                yaxis, layout = self.get_yaxis_layout_chart(col, property_map)
+                if yaxis and layout:
+                    layout_params[f'yaxis{yaxis[-1]}'] = layout
+
+                data.append(go.Bar(x=df.index, y=ydata, name=trace_name, yaxis=yaxis, **kwargs))
 
         return self.show(plotly_data=data, plotly_layout=plotly_layout, annotation_df=annotation_df, render=render,
                          file_name=file_name, width=width,
-                         height=height, title=title, keep_ui_state=keep_ui_state)
+                         height=height, title=title, keep_ui_state=keep_ui_state, **layout_params)
 
     def draw_pie(self, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None, height=None,
-                 title=None, keep_ui_state=True, **kwargs):
+                 title=None, keep_ui_state=True, property_map=None, **kwargs):
         data = []
         for entity_id, df in self.normal_data.entity_map_df.items():
             for _, row in df.iterrows():
@@ -206,7 +311,7 @@ class Drawer(object):
                          height=height, title=title, keep_ui_state=keep_ui_state)
 
     def draw_polar(self, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None, height=None,
-                   title=None, keep_ui_state=True, **kwargs):
+                   title=None, keep_ui_state=True, property_map=None, **kwargs):
         data = []
         for entity_id, df in self.normal_data.entity_map_df.items():
             for _, row in df.iterrows():
@@ -230,7 +335,7 @@ class Drawer(object):
 
     def draw_histogram(self, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None,
                        height=None,
-                       title=None, keep_ui_state=True, **kwargs):
+                       title=None, keep_ui_state=True, property_map=None, **kwargs):
         data = []
         annotations = []
         for entity_id, df in self.normal_data.entity_map_df.items():
@@ -285,7 +390,7 @@ class Drawer(object):
                          height=height, title=title, keep_ui_state=keep_ui_state)
 
     def draw_kline(self, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None, height=None,
-                   title=None, keep_ui_state=True, indicators=[], **kwargs):
+                   title=None, keep_ui_state=True, indicators=[], property_map=None, **kwargs):
         data = []
         for entity_id, df in self.normal_data.entity_map_df.items():
             entity_type, _, code = decode_entity_id(entity_id)
@@ -318,7 +423,7 @@ class Drawer(object):
                          height=height, title=title, keep_ui_state=keep_ui_state)
 
     def draw_table(self, plotly_layout=None, annotation_df=None, render='html', file_name=None, width=None, height=None,
-                   title=None, keep_ui_state=True, **kwargs):
+                   title=None, keep_ui_state=True, property_map=None, **kwargs):
         cols = self.normal_data.data_df.index.names + self.normal_data.data_df.columns.tolist()
 
         index1 = self.normal_data.data_df.index.get_level_values(0).tolist()
@@ -330,12 +435,9 @@ class Drawer(object):
                         fill_color=['#000080', '#000080'] + ['#0066cc'] * len(self.normal_data.data_df.columns),
                         align='left',
                         font=dict(color='white', size=13)),
-            cells=dict(values=values,
-                       fill=dict(color='#F5F8FF'),
-                       align='left'),
-            **kwargs)
+            cells=dict(values=values, fill=dict(color='#F5F8FF'), align='left'), **kwargs)
 
-        return self.show(plotly_data=data, plotly_layout=plotly_layout, annotation_df=annotation_df, render=render,
+        return self.show(plotly_data=[data], plotly_layout=plotly_layout, annotation_df=annotation_df, render=render,
                          file_name=file_name, width=width,
                          height=height, title=title, keep_ui_state=keep_ui_state)
 

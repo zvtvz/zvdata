@@ -9,7 +9,7 @@ import pandas as pd
 from zvdata.api import get_data
 from zvdata.chart import Drawer
 from zvdata.normal_data import NormalData
-from zvdata.structs import IntervalLevel
+from zvdata import IntervalLevel
 from zvdata.utils.pd_utils import index_df_with_category_xfield, df_is_not_null
 from zvdata.utils.time_utils import to_pd_timestamp, to_time_str, now_pd_timestamp
 
@@ -117,6 +117,8 @@ class DataReader(object):
                     self.columns.append(eval('data_schema.{}'.format(col)))
 
             time_col = eval('self.data_schema.{}'.format(self.time_field))
+
+            # always add category_column and time_field for normalizing
             self.columns = list(set(self.columns) | {self.category_column, time_col})
 
         self.data_listeners: List[DataListener] = []
@@ -232,6 +234,10 @@ class DataReader(object):
             for listener in self.data_listeners:
                 listener.on_data_changed(self.data_df)
 
+            # update the normal_data too
+            self.normal_data = NormalData(df=self.data_df, category_field=self.category_field,
+                                          index_field=self.time_field, is_timeseries=True)
+
         return changed
 
     def register_data_listener(self, listener):
@@ -247,11 +253,11 @@ class DataReader(object):
             self.data_listeners.remove(listener)
 
     def data_drawer(self) -> Drawer:
-        # FIXME"refresh normal_data?
-        self.normal_data = NormalData(df=self.data_df, category_field=self.category_field,
-                                      index_field=self.time_field, is_timeseries=True)
-
         return Drawer(data=self.normal_data)
 
     def is_empty(self):
         return not df_is_not_null(self.data_df)
+
+
+class MultipleSchemaReader(object):
+    pass

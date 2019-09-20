@@ -8,17 +8,24 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 
-from zvdata.structs import EntityMixin
+from zvdata import EntityMixin
+from zvdata.utils.utils import add_to_map_list
 
 logger = logging.getLogger(__name__)
 
 # provider_dbname -> engine
 _db_engine_map = {}
+
 # provider_dbname -> session
 _db_session_map = {}
 
+# all registered providers
 global_providers = []
+
+# all registered entity types
 global_entity_types = []
+
+# all registered schemas
 global_schemas = []
 
 # provider -> [db_name1,db_name2...]
@@ -34,9 +41,17 @@ dbname_map_schemas = {
 }
 
 # entity_type -> schema
-entity_type_map_schema = {
+global_entity_schema = {
 
 }
+
+# entity_type -> schema
+entity_map_schemas = {
+
+}
+
+# global sessions
+global_sessions = {}
 
 context = {}
 
@@ -56,7 +71,7 @@ def init_factor_schema():
     register_schema(providers=['zvdata'], db_name='core', schema_base=BusinessBase)
 
 
-def init_context(data_path: str, ui_path: str, domain_module: str, register_api: bool = False) -> None:
+def init_context(data_path: str, ui_path: str, log_path: str, domain_module: str, register_api: bool = False) -> None:
     """
     now we just support sqlite engine for storing the data,you need to set the path for the db
 
@@ -64,6 +79,8 @@ def init_context(data_path: str, ui_path: str, domain_module: str, register_api:
     :type data_path:
     :param ui_path: the path for storing render html
     :type ui_path:
+    :param log_path: the path for logs
+    :type log_path:
     :param domain_module: the module name of your domains
     :type domain_module:
     :param register_api: whether register the api
@@ -71,6 +88,7 @@ def init_context(data_path: str, ui_path: str, domain_module: str, register_api:
     """
     context['data_path'] = data_path
     context['ui_path'] = ui_path
+    context['log_path'] = log_path
     context['domain_module'] = domain_module
     context['register_api'] = register_api
 
@@ -155,7 +173,7 @@ def get_db_engine(provider: str,
     if data_schema:
         db_name = get_db_name(data_schema=data_schema)
 
-    db_path = os.path.join(context['data_path'], '{}_{}.db'.format(provider, db_name))
+    db_path = os.path.join(context['data_path'], '{}_{}.db?check_same_thread=False'.format(provider, db_name))
 
     engine_key = '{}_{}'.format(provider, db_name)
     db_engine = _db_engine_map.get(engine_key)
@@ -167,7 +185,8 @@ def get_db_engine(provider: str,
 
 def get_db_session(provider: str,
                    db_name: str = None,
-                   data_schema: object = None) -> Session:
+                   data_schema: object = None,
+                   force_new: bool = False) -> Session:
     """
     get db session of the (provider,db_name) or (provider,data_schema)
 
@@ -177,10 +196,25 @@ def get_db_session(provider: str,
     :type db_name:
     :param data_schema:
     :type data_schema:
+    :param force_new:
+    :type force_new:
+
     :return:
     :rtype:
     """
-    return get_db_session_factory(provider, db_name, data_schema)()
+    if data_schema:
+        db_name = get_db_name(data_schema=data_schema)
+
+    session_key = '{}_{}'.format(provider, db_name)
+
+    if force_new:
+        return get_db_session_factory(provider, db_name, data_schema)()
+
+    session = global_sessions.get(session_key)
+    if not session:
+        session = get_db_session_factory(provider, db_name, data_schema)()
+        global_sessions[session_key] = session
+    return session
 
 
 def get_db_session_factory(provider: str,
@@ -209,6 +243,10 @@ def get_db_session_factory(provider: str,
     return session
 
 
+def get_providers():
+    return global_providers
+
+
 def get_schemas(provider: str) -> List[DeclarativeMeta]:
     """
     get domain schemas supported by the provider
@@ -226,6 +264,10 @@ def get_schemas(provider: str) -> List[DeclarativeMeta]:
                 if schemas1:
                     schemas += schemas1
     return schemas
+
+
+def get_entity_types():
+    return global_entity_types
 
 
 def get_schema_by_name(name: str) -> DeclarativeMeta:
@@ -263,7 +305,7 @@ from typing import List, Union
 import pandas as pd
 from sqlalchemy.orm import Session
 from zvdata.api import get_data
-from zvdata.structs import IntervalLevel
+from zvdata import IntervalLevel
 '''
 api_template = '''
 {}
@@ -361,7 +403,9 @@ def register_entity(entity_type: str = None):
 
             if entity_type_ not in global_entity_types:
                 global_entity_types.append(entity_type_)
-            entity_type_map_schema[entity_type_] = cls
+            global_entity_schema[entity_type_] = cls
+
+            add_to_map_list(the_map=entity_map_schemas, key=entity_type, value=cls)
         return cls
 
     return register
@@ -369,7 +413,8 @@ def register_entity(entity_type: str = None):
 
 def register_schema(providers: List[str],
                     db_name: str,
-                    schema_base: DeclarativeMeta):
+                    schema_base: DeclarativeMeta,
+                    entity_type: str = 'stock'):
     """
     function for register schema,please declare them before register
 
@@ -379,6 +424,8 @@ def register_schema(providers: List[str],
     :type db_name:
     :param schema_base:
     :type schema_base:
+    :param entity_type: the schema related entity_type
+    :type entity_type:
     :return:
     :rtype:
     """
@@ -389,6 +436,7 @@ def register_schema(providers: List[str],
             if dbname_map_schemas.get(db_name):
                 schemas = dbname_map_schemas[db_name]
             global_schemas.append(cls)
+            add_to_map_list(the_map=entity_map_schemas, key=entity_type, value=cls)
             schemas.append(cls)
 
     dbname_map_schemas[db_name] = schemas

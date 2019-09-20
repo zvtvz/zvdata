@@ -5,12 +5,13 @@ import os
 from sqlalchemy import Column, DateTime, String, Float
 from sqlalchemy.ext.declarative import declarative_base
 
+from zvdata import Mixin
 from zvdata.domain import EntityMixin, register_schema, init_context, register_api, register_entity, \
     domain_name_to_table_name
-from zvdata.structs import Mixin
 
 DATA_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'datasample'))
-init_context(data_path=DATA_PATH, ui_path=DATA_PATH, domain_module='tests.domain', register_api=True)
+LOG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'logs'))
+init_context(data_path=DATA_PATH, log_path=LOG_PATH, ui_path=DATA_PATH, domain_module='tests.domain', register_api=True)
 
 # define the db
 MetaBase = declarative_base()
