@@ -136,6 +136,11 @@ class TimeSeriesDataRecorder(RecorderForEntities):
 
         self.default_size = default_size
         self.real_time = real_time
+
+        # FIXEME
+        self.close_hour = None
+        self.close_minute = None
+
         self.fix_duplicate_way = fix_duplicate_way
 
         self.start_timestamp = to_pd_timestamp(start_timestamp)
