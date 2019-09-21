@@ -11,8 +11,7 @@ zvdata是一个可扩展的记录数据和分析数据的库.
 
 # 如何使用
 
-this's abstract part of zvt,it could be used to recording,calculating,visualizing the data in a funny way
-这是[zvt](https://github.com/zvtvz/zvt)抽象出来的通用库,可以用一种有趣的方式来记录,计算和可视化数据.
+这是[zvt](https://github.com/zvtvz/zvt)抽象出来的通用库,可以用一种方便的方式来记录,计算和可视化数据.
 
 # 联系方式  
 微信　foolcage
