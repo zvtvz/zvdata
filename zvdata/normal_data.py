@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import pandas as pd
-
 from zvdata.utils.pd_utils import pd_is_not_null, fill_with_same_index, normal_index_df, is_normal_df
 
 
@@ -10,12 +8,10 @@ class NormalData(object):
 
     def __init__(self,
                  df,
-                 annotation_df=None,
                  category_field='entity_id',
                  index_field='timestamp',
                  fill_index: bool = False) -> None:
         self.data_df = df
-        self.annotation_df: pd.DataFrame = annotation_df
         self.category_field = category_field
         self.index_field = index_field
         self.fill_index = fill_index
