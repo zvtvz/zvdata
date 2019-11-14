@@ -36,7 +36,7 @@ setup(
     # For a discussion on single-sourcing the version across setup.py and the
     # project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.3.4',  # Required
+    version='1.0.0',  # Required
 
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
@@ -119,8 +119,7 @@ setup(
     # For an analysis of "install_requires" vs pip's requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
 
-    install_requires=['SQLAlchemy>=1.2.14', 'pandas>=0.24.2', 'arrow>=0.11.0', 'tzlocal>=1.5.1', 'xlrd>=1.1.0',
-                      'dash>=1.0.0', 'dash-daq>=0.1.0'],
+    install_requires=['SQLAlchemy>=1.2.14', 'pandas>=0.24.2', 'arrow>=0.11.0', 'tzlocal>=1.5.1', 'xlrd>=1.1.0'],
     # Optional
 
     # List additional groups of dependencies here (e.g. development

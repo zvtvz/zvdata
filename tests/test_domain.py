@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from zvdata.domain import domain_name_to_table_name, table_name_to_domain_name
+from zvdata.contract import domain_name_to_table_name, table_name_to_domain_name
 
 
 def test_domain_name_to_table_name():

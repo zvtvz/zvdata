@@ -7,7 +7,7 @@ import requests
 from tests.consts import DEFAULT_SH_HEADER, DEFAULT_SZ_HEADER
 from tests.domain import *
 from zvdata.api import init_entities, get_entities, get_data
-from zvdata.domain import generate_api
+from zvdata.contract import generate_api
 from zvdata.recorder import Recorder
 from zvdata.utils.time_utils import to_pd_timestamp
 
@@ -91,7 +91,7 @@ def test_get_data():
 
 
 def test_generate_api():
-    generate_api(api_tmp_path, api_tmp_path)
+    generate_api(api_tmp_path)
     exec('from tests.api import get_stock')
     get_stocks1 = eval('get_stock')
     df = get_stocks1(limit=10, provider='sina')

@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 
 from zvdata import IntervalLevel
 from zvdata.api import get_entities, get_data
-from zvdata.domain import get_db_session
+from zvdata.contract import get_db_session
 from zvdata.utils.time_utils import to_pd_timestamp, TIME_FORMAT_DAY, to_time_str, \
-    evaluate_size_from_timestamp, is_finished_kdata_timestamp
+    evaluate_size_from_timestamp, is_in_same_interval
 from zvdata.utils.utils import fill_domain_from_dict
 
 
@@ -37,6 +37,7 @@ class Recorder(object):
         :param sleeping_time:sleeping seconds for recoding loop
         :type sleeping_time:int
         """
+        self.logger = logging.getLogger(self.__class__.__name__)
 
         assert self.provider is not None
         assert self.data_schema is not None
@@ -132,14 +133,15 @@ class TimeSeriesDataRecorder(RecorderForEntities):
                  real_time=False,
                  fix_duplicate_way='add',
                  start_timestamp=None,
-                 end_timestamp=None) -> None:
+                 end_timestamp=None,
+                 close_hour=0,
+                 close_minute=0) -> None:
 
         self.default_size = default_size
         self.real_time = real_time
 
-        # FIXEME
-        self.close_hour = None
-        self.close_minute = None
+        self.close_hour = close_hour
+        self.close_minute = close_minute
 
         self.fix_duplicate_way = fix_duplicate_way
 
@@ -445,19 +447,18 @@ class FixedCycleDataRecorder(TimeSeriesDataRecorder):
                  fix_duplicate_way='ignore',
                  start_timestamp=None,
                  end_timestamp=None,
+                 close_hour=0,
+                 close_minute=0,
                  # child add
                  level=IntervalLevel.LEVEL_1DAY,
                  kdata_use_begin_time=False,
-                 close_hour=0,
-                 close_minute=0,
                  one_day_trading_minutes=24 * 60) -> None:
         super().__init__(entity_type, exchanges, entity_ids, codes, batch_size, force_update, sleeping_time,
-                         default_size, real_time, fix_duplicate_way, start_timestamp, end_timestamp)
+                         default_size, real_time, fix_duplicate_way, start_timestamp, end_timestamp, close_hour,
+                         close_minute)
 
         self.level = IntervalLevel(level)
         self.kdata_use_begin_time = kdata_use_begin_time
-        self.close_hour = close_hour
-        self.close_minute = close_minute
         self.one_day_trading_minutes = one_day_trading_minutes
 
     def get_latest_saved_record(self, entity):
@@ -472,11 +473,13 @@ class FixedCycleDataRecorder(TimeSeriesDataRecorder):
                            session=self.session,
                            level=self.level.value)
         if records:
-            # just keep one unfinished kdata
-            if not is_finished_kdata_timestamp(records[-1].timestamp, level=self.level):
-                self.session.delete(records[-1])
-                return records[0]
-            return records[-1]
+            # delete unfinished kdata
+            if len(records) == 2:
+                if is_in_same_interval(t1=records[0].timestamp, t2=records[1].timestamp, level=self.level):
+                    self.session.delete(records[0])
+                    self.session.flush()
+                    return records[1]
+            return records[0]
         return None
 
     def evaluate_start_end_size_timestamps(self, entity):

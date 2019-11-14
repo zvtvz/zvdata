@@ -3,21 +3,15 @@ import logging
 import os
 from typing import List
 
-from sqlalchemy import create_engine, schema, Column, String, DateTime
+from sqlalchemy import create_engine, schema
 from sqlalchemy.engine import Engine
-from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
+from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import sessionmaker, Session
 
 from zvdata import EntityMixin
 from zvdata.utils.utils import add_to_map_list
 
 logger = logging.getLogger(__name__)
-
-# provider_dbname -> engine
-_db_engine_map = {}
-
-# provider_dbname -> session
-_db_session_map = {}
 
 # all registered providers
 global_providers = []
@@ -28,77 +22,58 @@ global_entity_types = []
 # all registered schemas
 global_schemas = []
 
-# provider -> [db_name1,db_name2...]
-provider_map_dbnames = {
-}
-
-# db_name -> [declarative_base1,declarative_base2...]
-dbname_map_base = {
-}
-
-# db_name -> [declarative_meta1,declarative_meta2...]
-dbname_map_schemas = {
-}
-
 # entity_type -> schema
 global_entity_schema = {
-
-}
-
-# entity_type -> schema
-entity_map_schemas = {
 
 }
 
 # global sessions
 global_sessions = {}
 
-context = {}
+# provider_dbname -> engine
+_db_engine_map = {}
 
-BusinessBase = declarative_base()
+# provider_dbname -> session
+_db_session_map = {}
+
+# provider -> [db_name1,db_name2...]
+_provider_map_dbnames = {
+}
+
+# db_name -> [declarative_base1,declarative_base2...]
+_dbname_map_base = {
+}
+
+# db_name -> [declarative_meta1,declarative_meta2...]
+_dbname_map_schemas = {
+}
+
+# entity_type -> schema
+_entity_map_schemas = {
+
+}
+
+zvdata_env = {}
 
 
-class FactorDomain(BusinessBase):
-    __tablename__ = 'factor_domain'
-    factor_id = Column(String(length=128), primary_key=True)
-    entity_id = Column(String(length=128), primary_key=True)
-    timestamp = Column(DateTime, primary_key=True)
-    depth_data = Column(String(length=1024))
-    result_data = Column(String(length=1024))
-
-
-def init_factor_schema():
-    register_schema(providers=['zvdata'], db_name='core', schema_base=BusinessBase)
-
-
-def init_context(data_path: str, ui_path: str, log_path: str, domain_module: str, register_api: bool = False) -> None:
+def init_data_env(data_path: str, domain_module: str) -> None:
     """
     now we just support sqlite engine for storing the data,you need to set the path for the db
 
     :param data_path: the db file path
     :type data_path:
-    :param ui_path: the path for storing render html
-    :type ui_path:
-    :param log_path: the path for logs
-    :type log_path:
     :param domain_module: the module name of your domains
     :type domain_module:
-    :param register_api: whether register the api
-    :type register_api:
     """
-    context['data_path'] = data_path
-    context['ui_path'] = ui_path
-    context['log_path'] = log_path
-    context['domain_module'] = domain_module
-    context['register_api'] = register_api
+    zvdata_env['data_path'] = data_path
+    zvdata_env['domain_module'] = domain_module
 
     if not os.path.exists(data_path):
         os.makedirs(data_path)
 
-    if not os.path.exists(ui_path):
-        os.makedirs(ui_path)
-
-    init_factor_schema()
+    zvdata_env['api_dir'] = os.path.join(data_path, 'api')
+    if not os.path.exists(zvdata_env['api_dir']):
+        os.makedirs(zvdata_env['api_dir'])
 
 
 def table_name_to_domain_name(table_name: str) -> DeclarativeMeta:
@@ -149,7 +124,7 @@ def get_db_name(data_schema: DeclarativeMeta) -> str:
     :return:
     :rtype:
     """
-    for db_name, base in dbname_map_base.items():
+    for db_name, base in _dbname_map_base.items():
         if issubclass(data_schema, base):
             return db_name
 
@@ -173,7 +148,7 @@ def get_db_engine(provider: str,
     if data_schema:
         db_name = get_db_name(data_schema=data_schema)
 
-    db_path = os.path.join(context['data_path'], '{}_{}.db?check_same_thread=False'.format(provider, db_name))
+    db_path = os.path.join(zvdata_env['data_path'], '{}_{}.db?check_same_thread=False'.format(provider, db_name))
 
     engine_key = '{}_{}'.format(provider, db_name)
     db_engine = _db_engine_map.get(engine_key)
@@ -257,10 +232,10 @@ def get_schemas(provider: str) -> List[DeclarativeMeta]:
     :rtype:
     """
     schemas = []
-    for provider1, dbs in provider_map_dbnames.items():
+    for provider1, dbs in _provider_map_dbnames.items():
         if provider == provider1:
             for dbname in dbs:
-                schemas1 = dbname_map_schemas.get(dbname)
+                schemas1 = _dbname_map_schemas.get(dbname)
                 if schemas1:
                     schemas += schemas1
     return schemas
@@ -325,61 +300,54 @@ def get_{}(
         order=None,
         limit: int = None,
         index: str = 'timestamp',
-        index_is_time: bool = True,
         time_field: str = 'timestamp'):
     return get_data(data_schema={}, entity_ids=entity_ids, entity_id=entity_id, codes=codes, level=level,
                     provider=provider,
                     columns=columns, return_type=return_type, start_timestamp=start_timestamp,
                     end_timestamp=end_timestamp, filters=filters, session=session, order=order, limit=limit,
-                    index=index, index_is_time=index_is_time, time_field=time_field)
+                    index=index, time_field=time_field)
 '''
 
 
-def register_api(provider: str, api_dir: str = '.') -> object:
+def register_api(provider: str) -> object:
     """
     decorator for registering api of the domain
 
     :param provider:
     :type provider:
-    :param api_dir:
-    :type api_dir:
     :return:
     :rtype:
     """
 
     def generate(cls):
-        if context['register_api']:
-            import_str = 'from {} import {}'.format(context['domain_module'], cls.__name__)
-            the_func = api_template.format(import_str, cls.__tablename__, provider, cls.__name__)
+        import_str = 'from {} import {}'.format(zvdata_env['domain_module'], cls.__name__)
+        the_func = api_template.format(import_str, cls.__tablename__, provider, cls.__name__)
 
-            with open(os.path.join(api_dir, f'{cls.__tablename__}.api'), "w") as myfile:
-                myfile.write(the_func)
-                myfile.write('\n')
+        with open(os.path.join(zvdata_env['api_dir'], f'{cls.__tablename__}.api'), "w") as myfile:
+            myfile.write(the_func)
+            myfile.write('\n')
 
         return cls
 
     return generate
 
 
-def generate_api(api_path: str, tmp_api_dir: str) -> object:
+def generate_api(api_path: str) -> object:
     """
     function for generate api.py for the register_api domain
 
     :param api_path:
     :type api_path:
-    :param tmp_api_dir:
-    :type tmp_api_dir:
     """
     from os import listdir
     from os.path import isfile, join
-    api_files = [os.path.join(tmp_api_dir, f) for f in listdir(tmp_api_dir) if
-                 isfile(join(tmp_api_dir, f)) and f.endswith('.api')]
+    api_files = [os.path.join(zvdata_env['api_dir'], f) for f in listdir(zvdata_env['api_dir']) if
+                 isfile(join(zvdata_env['api_dir'], f)) and f.endswith('.api')]
     with open(os.path.join(api_path, 'api.py'), 'w') as outfile:
         outfile.write(api_header)
 
         for api_file in api_files:
             with open(api_file) as infile:
-                print()
                 outfile.write(infile.read())
             os.remove(api_file)
 
@@ -405,7 +373,7 @@ def register_entity(entity_type: str = None):
                 global_entity_types.append(entity_type_)
             global_entity_schema[entity_type_] = cls
 
-            add_to_map_list(the_map=entity_map_schemas, key=entity_type, value=cls)
+            add_to_map_list(the_map=_entity_map_schemas, key=entity_type, value=cls)
         return cls
 
     return register
@@ -433,23 +401,23 @@ def register_schema(providers: List[str],
     for item in schema_base._decl_class_registry.items():
         cls = item[1]
         if type(cls) == DeclarativeMeta:
-            if dbname_map_schemas.get(db_name):
-                schemas = dbname_map_schemas[db_name]
+            if _dbname_map_schemas.get(db_name):
+                schemas = _dbname_map_schemas[db_name]
             global_schemas.append(cls)
-            add_to_map_list(the_map=entity_map_schemas, key=entity_type, value=cls)
+            add_to_map_list(the_map=_entity_map_schemas, key=entity_type, value=cls)
             schemas.append(cls)
 
-    dbname_map_schemas[db_name] = schemas
+    _dbname_map_schemas[db_name] = schemas
 
     for provider in providers:
         # track in in  _providers
         if provider not in global_providers:
             global_providers.append(provider)
 
-        if not provider_map_dbnames.get(provider):
-            provider_map_dbnames[provider] = []
-        provider_map_dbnames[provider].append(db_name)
-        dbname_map_base[db_name] = schema_base
+        if not _provider_map_dbnames.get(provider):
+            _provider_map_dbnames[provider] = []
+        _provider_map_dbnames[provider].append(db_name)
+        _dbname_map_base[db_name] = schema_base
 
         # create the db & table
         engine = get_db_engine(provider, db_name=db_name)

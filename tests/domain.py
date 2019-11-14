@@ -6,12 +6,12 @@ from sqlalchemy import Column, DateTime, String, Float
 from sqlalchemy.ext.declarative import declarative_base
 
 from zvdata import Mixin
-from zvdata.domain import EntityMixin, register_schema, init_context, register_api, register_entity, \
-    domain_name_to_table_name
+from zvdata.contract import EntityMixin, register_schema, register_api, register_entity, \
+    domain_name_to_table_name, init_data_env
 
 DATA_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'datasample'))
 LOG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'logs'))
-init_context(data_path=DATA_PATH, log_path=LOG_PATH, ui_path=DATA_PATH, domain_module='tests.domain', register_api=True)
+init_data_env(data_path=DATA_PATH, domain_module='tests.domain')
 
 # define the db
 MetaBase = declarative_base()
@@ -20,7 +20,7 @@ api_tmp_path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
 
 # define the schema
-@register_api(provider='sina', api_dir=api_tmp_path)
+@register_api(provider='sina')
 @register_entity(entity_type='stock')
 class Stock(MetaBase, EntityMixin):
     __tablename__ = domain_name_to_table_name('Stock')

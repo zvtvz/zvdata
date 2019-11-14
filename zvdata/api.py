@@ -3,15 +3,25 @@ from typing import List, Union
 
 import pandas as pd
 from sqlalchemy import func, exists, and_
+from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import Query, Session
 
 from zvdata import IntervalLevel
-from zvdata.domain import get_db_name, get_db_session, get_db_engine, global_entity_schema, global_providers
-from zvdata.utils.pd_utils import df_is_not_null, index_df
+from zvdata.contract import get_db_name, get_db_session, get_db_engine, global_entity_schema, global_providers, \
+    get_schema_columns
+from zvdata.utils.pd_utils import pd_is_not_null, index_df
 from zvdata.utils.time_utils import to_pd_timestamp
 
 
-def get_entity_schema(entity_type):
+def get_entity_schema(entity_type: str) -> object:
+    """
+    get entity schema from name
+
+    :param entity_type:
+    :type entity_type:
+    :return:
+    :rtype:
+    """
     return global_entity_schema[entity_type]
 
 
@@ -59,8 +69,7 @@ def get_data(data_schema,
              session: Session = None,
              order=None,
              limit: int = None,
-             index: str = 'timestamp',
-             index_is_time: bool = True,
+             index: str = None,
              time_field: str = 'timestamp'):
     assert data_schema is not None
     assert provider is not None
@@ -69,6 +78,7 @@ def get_data(data_schema,
     if not session:
         session = get_db_session(provider=provider, data_schema=data_schema)
 
+    entity_id_col = eval('data_schema.{}'.format('entity_id'))
     time_col = eval('data_schema.{}'.format(time_field))
 
     if columns:
@@ -76,11 +86,17 @@ def get_data(data_schema,
         if type(columns[0]) == str:
             columns_ = []
             for col in columns:
+                assert isinstance(col, str)
                 columns_.append(eval('data_schema.{}'.format(col)))
             columns = columns_
 
+        # make sure get entity_id,timestamp
+        if entity_id_col not in columns:
+            columns.append(entity_id_col)
+
         if time_col not in columns:
             columns.append(time_col)
+
         query = session.query(*columns)
     else:
         query = session.query(data_schema)
@@ -111,8 +127,11 @@ def get_data(data_schema,
 
     if return_type == 'df':
         df = pd.read_sql(query.statement, query.session.bind)
-        if df_is_not_null(df):
-            return index_df(df, drop=False, index=index, index_is_time=index_is_time)
+        if pd_is_not_null(df):
+            if not index:
+                index = ['entity_id', time_field]
+
+            return index_df(df, drop=False, index=index, time_field=time_field)
         return df
     elif return_type == 'domain':
         return query.all()
@@ -154,39 +173,65 @@ def decode_entity_id(entity_id: str):
     return entity_type, exchange, code
 
 
-def df_to_db(df, data_schema, provider, force=False):
-    if not df_is_not_null(df):
+def df_to_db(df: pd.DataFrame, data_schema: DeclarativeMeta, provider: str, force_update: bool = False) -> object:
+    """
+    store the df to db
+
+    :param df:
+    :type df:
+    :param data_schema:
+    :type data_schema:
+    :param provider:
+    :type provider:
+    :param force_update:
+    :type force_update:
+    :return:
+    :rtype:
+    """
+    if not pd_is_not_null(df):
         return
 
     db_engine = get_db_engine(provider, data_schema=data_schema)
 
-    if force:
-        session = get_db_session(provider=provider, data_schema=data_schema)
-        ids = df["id"].tolist()
-        # count = len(ids)
-        # start = 0
-        # while True:
-        #     end = min(count, start + 5000)
-        #     sql = f'delete from {data_schema.__tablename__} where id in {tuple(ids[start:end])}'
-        #     session.execute(sql)
-        #     session.commit()
-        #     if end == count:
-        #         break
-        #     start = end
-        if len(ids) == 1:
-            sql = f'delete from {data_schema.__tablename__} where id = {ids[0]}'
-        else:
-            sql = f'delete from {data_schema.__tablename__} where id in {tuple(ids)}'
+    schema_cols = get_schema_columns(data_schema)
+    cols = set(df.columns.tolist()) & set(schema_cols)
 
-        session.execute(sql)
-        session.commit()
+    if not cols:
+        print('wrong cols')
+        return
 
+    df = df[cols]
+
+    size = len(df)
+    sub_size = 5000
+
+    if size >= sub_size:
+        step_size = int(size / sub_size)
+        if size % sub_size:
+            step_size = step_size + 1
     else:
-        current = get_data(data_schema=data_schema, columns=[data_schema.id], provider=provider)
-        if df_is_not_null(current):
-            df = df[~df['id'].isin(current['id'])]
+        step_size = 1
 
-    df.to_sql(data_schema.__tablename__, db_engine, index=False, if_exists='append')
+    for step in range(step_size):
+        df_current = df.iloc[sub_size * step:sub_size * (step + 1)]
+        if force_update:
+            session = get_db_session(provider=provider, data_schema=data_schema)
+            ids = df_current["id"].tolist()
+            if len(ids) == 1:
+                sql = f'delete from {data_schema.__tablename__} where id = "{ids[0]}"'
+            else:
+                sql = f'delete from {data_schema.__tablename__} where id in {tuple(ids)}'
+
+            session.execute(sql)
+            session.commit()
+
+        else:
+            current = get_data(data_schema=data_schema, columns=[data_schema.id], provider=provider,
+                               ids=df_current['id'].tolist())
+            if pd_is_not_null(current):
+                df_current = df_current[~df_current['id'].isin(current['id'])]
+
+        df_current.to_sql(data_schema.__tablename__, db_engine, index=False, if_exists='append')
 
 
 def init_entities(df, entity_type='stock', provider='exchange'):
@@ -200,7 +245,7 @@ def init_entities(df, entity_type='stock', provider='exchange'):
     current = get_entities(entity_type=entity_type, columns=[security_schema.id, security_schema.code],
                            provider=provider)
 
-    if df_is_not_null(current):
+    if pd_is_not_null(current):
         df = df[~df['id'].isin(current['id'])]
 
     df.to_sql(security_schema.__tablename__, db_engine, index=False, if_exists='append')
@@ -221,8 +266,7 @@ def get_entities(
         order: object = None,
         limit: int = None,
         provider: str = None,
-        index: str = 'code',
-        index_is_time: bool = False) -> object:
+        index: str = 'code') -> object:
     assert provider in global_providers
 
     if not entity_schema:
@@ -240,4 +284,12 @@ def get_entities(
     return get_data(data_schema=entity_schema, entity_ids=entity_ids, entity_id=None, codes=codes, level=None,
                     provider=provider, columns=columns, return_type=return_type, start_timestamp=start_timestamp,
                     end_timestamp=end_timestamp, filters=filters, session=session, order=order, limit=limit,
-                    index=index, index_is_time=index_is_time)
+                    index=index)
+
+
+def get_entity_ids(entity_type='stock', exchanges=['sz', 'sh'], codes=None, provider='eastmoney'):
+    df = get_entities(entity_type=entity_type, exchanges=exchanges, codes=codes,
+                      provider=provider)
+    if pd_is_not_null(df):
+        return df['entity_id'].to_list()
+    return None
