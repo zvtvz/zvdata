@@ -47,12 +47,13 @@ class DataReader(object):
 
     def __init__(self,
                  data_schema: object,
+                 entity_provider: str = None,
                  entity_ids: List[str] = None,
                  entity_type: str = 'stock',
                  exchanges: List[str] = ['sh', 'sz'],
                  codes: List[str] = None,
                  the_timestamp: Union[str, pd.Timestamp] = None,
-                 start_timestamp: Union[str, pd.Timestamp] = '2018-01-01',
+                 start_timestamp: Union[str, pd.Timestamp] = None,
                  end_timestamp: Union[str, pd.Timestamp] = now_pd_timestamp(),
                  columns: List = None,
                  filters: List = None,
@@ -62,7 +63,7 @@ class DataReader(object):
                  level: IntervalLevel = IntervalLevel.LEVEL_1DAY,
                  category_field: str = 'entity_id',
                  time_field: str = 'timestamp',
-                 computing_window: int = 250) -> None:
+                 computing_window: int = None) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
 
         self.data_schema = data_schema
@@ -79,6 +80,7 @@ class DataReader(object):
         self.end_timestamp = to_pd_timestamp(self.end_timestamp)
 
         self.entity_type = entity_type
+        self.entity_provider = entity_provider
         self.exchanges = exchanges
         if codes:
             if type(codes) == str:
@@ -90,6 +92,12 @@ class DataReader(object):
 
         self.codes = codes
         self.entity_ids = entity_ids
+
+        # 转换成标准entity_id
+        if not self.entity_ids:
+            self.entity_ids = get_entity_ids(provider=self.entity_provider, entity_type=self.entity_type,
+                                             exchanges=self.exchanges,
+                                             codes=self.codes)
 
         self.provider = provider
         self.filters = filters
@@ -127,12 +135,9 @@ class DataReader(object):
 
         self.load_data()
 
-    def load_window_df(self, provider, data_schema):
+    def load_window_df(self, provider, data_schema, window):
         window_df = None
-        if not self.entity_ids:
-            self.entity_ids = get_entity_ids(provider='eastmoney', entity_type=self.entity_type,
-                                             exchanges=self.exchanges,
-                                             codes=self.codes)
+
         dfs = []
         for entity_id in self.entity_ids:
             df = get_data(provider=provider,
@@ -141,7 +146,7 @@ class DataReader(object):
                           index=[self.category_field, self.time_field],
                           order=data_schema.timestamp.desc(),
                           entity_id=entity_id,
-                          limit=self.computing_window)
+                          limit=window)
             if pd_is_not_null(df):
                 dfs.append(df)
         if dfs:
@@ -153,24 +158,15 @@ class DataReader(object):
         self.logger.info('load_data start')
         start_time = time.time()
 
-        if self.entity_ids:
-            self.data_df = get_data(data_schema=self.data_schema, entity_ids=self.entity_ids,
-                                    provider=self.provider, columns=self.columns,
-                                    start_timestamp=self.start_timestamp,
-                                    end_timestamp=self.end_timestamp, filters=self.filters, order=self.order,
-                                    limit=self.limit,
-                                    level=self.level,
-                                    index=[self.category_field, self.time_field],
-                                    time_field=self.time_field)
-        else:
-            self.data_df = get_data(data_schema=self.data_schema, codes=self.codes,
-                                    provider=self.provider, columns=self.columns,
-                                    start_timestamp=self.start_timestamp,
-                                    end_timestamp=self.end_timestamp, filters=self.filters, order=self.order,
-                                    limit=self.limit,
-                                    level=self.level,
-                                    index=[self.category_field, self.time_field],
-                                    time_field=self.time_field)
+        self.data_df = get_data(data_schema=self.data_schema, entity_ids=self.entity_ids,
+                                provider=self.provider, columns=self.columns,
+                                start_timestamp=self.start_timestamp,
+                                end_timestamp=self.end_timestamp, filters=self.filters, order=self.order,
+                                limit=self.limit,
+                                level=self.level,
+                                index=[self.category_field, self.time_field],
+                                time_field=self.time_field)
+
         cost_time = time.time() - start_time
         self.logger.info('load_data finish cost_time:{}'.format(cost_time))
 
@@ -209,6 +205,7 @@ class DataReader(object):
 
                 recorded_timestamp = df['timestamp'].max()
 
+                # move_on读取数据，表明之前的数据已经处理完毕，只需要保留computing_window的数据
                 if self.computing_window:
                     df = df.iloc[-self.computing_window:]
 
