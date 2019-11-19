@@ -318,6 +318,7 @@ class TimeSeriesDataRecorder(RecorderForEntities):
                 try:
                     start_timestamp, end_timestamp, size, timestamps = self.evaluate_start_end_size_timestamps(
                         entity_item)
+                    size = int(size)
 
                     if timestamps:
                         self.logger.info('entity_id:{},evaluate_start_end_size_timestamps result:{},{},{},{}-{}'.format(
