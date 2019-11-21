@@ -94,7 +94,7 @@ class DataReader(object):
         self.entity_ids = entity_ids
 
         # 转换成标准entity_id
-        if not self.entity_ids:
+        if not self.entity_ids and self.entity_provider:
             self.entity_ids = get_entity_ids(provider=self.entity_provider, entity_type=self.entity_type,
                                              exchanges=self.exchanges,
                                              codes=self.codes)

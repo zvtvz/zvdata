@@ -26,18 +26,19 @@ def index_df(df, index='timestamp', inplace=True, drop=True, time_field='timesta
     return df
 
 
-def normal_index_df(df, index=['entity_id', 'timestamp'], drop=True):
+def normal_index_df(df, category_field='entity_id', time_filed='timestamp', drop=True):
+    index = [category_field, time_filed]
     if is_normal_df(df):
         return df
 
     return index_df(df=df, index=index, drop=drop, time_field='timestamp')
 
 
-def is_normal_df(df):
+def is_normal_df(df, category_field='entity_id', time_filed='timestamp'):
     if pd_is_not_null(df):
         names = df.index.names
 
-        if len(names) == 2 and names[0] == 'entity_id' and names[1] == 'timestamp':
+        if len(names) == 2 and names[0] == category_field and names[1] == time_filed:
             return True
 
     return False

@@ -9,11 +9,11 @@ class NormalData(object):
     def __init__(self,
                  df,
                  category_field='entity_id',
-                 index_field='timestamp',
+                 time_field='timestamp',
                  fill_index: bool = False) -> None:
         self.data_df = df
         self.category_field = category_field
-        self.index_field = index_field
+        self.time_field = time_field
         self.fill_index = fill_index
 
         self.entity_ids = []
@@ -31,7 +31,7 @@ class NormalData(object):
         """
         if pd_is_not_null(self.data_df):
             if not is_normal_df(self.data_df):
-                self.data_df = normal_index_df(self.data_df)
+                self.data_df = normal_index_df(self.data_df, self.category_field, self.time_field)
 
             self.entity_ids = self.data_df.index.levels[0].to_list()
 

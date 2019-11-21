@@ -78,7 +78,6 @@ def get_data(data_schema,
     if not session:
         session = get_db_session(provider=provider, data_schema=data_schema)
 
-    entity_id_col = eval('data_schema.{}'.format('entity_id'))
     time_col = eval('data_schema.{}'.format(time_field))
 
     if columns:
@@ -90,10 +89,7 @@ def get_data(data_schema,
                 columns_.append(eval('data_schema.{}'.format(col)))
             columns = columns_
 
-        # make sure get entity_id,timestamp
-        if entity_id_col not in columns:
-            columns.append(entity_id_col)
-
+        # make sure get timestamp
         if time_col not in columns:
             columns.append(time_col)
 
@@ -128,10 +124,8 @@ def get_data(data_schema,
     if return_type == 'df':
         df = pd.read_sql(query.statement, query.session.bind)
         if pd_is_not_null(df):
-            if not index:
-                index = ['entity_id', time_field]
-
-            return index_df(df, drop=False, index=index, time_field=time_field)
+            if index:
+                return index_df(df, drop=False, index=index, time_field=time_field)
         return df
     elif return_type == 'domain':
         return query.all()
