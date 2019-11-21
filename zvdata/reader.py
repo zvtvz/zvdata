@@ -143,6 +143,7 @@ class DataReader(object):
             df = get_data(provider=provider,
                           data_schema=data_schema,
                           start_timestamp=self.start_timestamp,
+                          end_timestamp=self.end_timestamp,
                           index=[self.category_field, self.time_field],
                           order=data_schema.timestamp.desc(),
                           entity_id=entity_id,
