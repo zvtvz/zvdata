@@ -6,7 +6,7 @@ from typing import List
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from zvdata import IntervalLevel
+from zvdata import IntervalLevel, Mixin
 from zvdata.api import get_entities, get_data
 from zvdata.contract import get_db_session
 from zvdata.utils.time_utils import to_pd_timestamp, TIME_FORMAT_DAY, to_time_str, \
@@ -14,12 +14,23 @@ from zvdata.utils.time_utils import to_pd_timestamp, TIME_FORMAT_DAY, to_time_st
 from zvdata.utils.utils import fill_domain_from_dict
 
 
-class Recorder(object):
+class Meta(type):
+    def __new__(meta, name, bases, class_dict):
+        cls = type.__new__(meta, name, bases, class_dict)
+        # register the recorder class to the data_schema
+        if hasattr(cls, 'data_schema'):
+            if cls.data_schema and issubclass(cls.data_schema, Mixin):
+                print(f'{cls.data_schema.__name__}')
+                cls.data_schema.register_recorder_cls(cls)
+        return cls
+
+
+class Recorder(metaclass=Meta):
     logger = logging.getLogger(__name__)
 
     # overwrite them to setup the data you want to record
     provider: str = None
-    data_schema = None
+    data_schema: Mixin = None
 
     url = None
 

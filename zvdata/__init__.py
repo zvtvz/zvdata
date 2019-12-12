@@ -21,6 +21,55 @@ class Mixin(object):
     def time_field(cls):
         return 'timestamp'
 
+    @classmethod
+    def register_recorder_cls(cls, recorder_cls):
+        # make sure recorder_classes is created for every class
+        if not hasattr(cls, 'recorders'):
+            cls.recorders = []
+        if recorder_cls not in cls.recorders:
+            cls.recorders.append(recorder_cls)
+
+    def fetch_data(self,
+                   recorder_index: int = 0,
+                   entity_ids=None,
+                   codes=None,
+                   batch_size=10,
+                   force_update=False,
+                   sleeping_time=5,
+                   default_size=2000,
+                   real_time=False,
+                   fix_duplicate_way='add',
+                   start_timestamp=None,
+                   end_timestamp=None,
+                   close_hour=0,
+                   close_minute=0):
+        cls = self.__class__
+        if hasattr(cls, 'recorders') and cls.recorders:
+            recorder_class = cls.recorders[recorder_index]
+            print(f'{cls.__name__} registered recorders:{cls.recorders}')
+
+            from zvdata.recorder import TimeSeriesDataRecorder
+
+            # TimeSeriesDataRecorder
+            if issubclass(recorder_class, TimeSeriesDataRecorder):
+                r = recorder_class(entity_ids=entity_ids, codes=codes, batch_size=batch_size, force_update=force_update,
+                                   sleeping_time=sleeping_time, default_size=default_size, real_time=real_time,
+                                   fix_duplicate_way=fix_duplicate_way, start_timestamp=start_timestamp,
+                                   end_timestamp=end_timestamp, close_hour=close_hour, close_minute=close_minute)
+                r.run()
+                return
+
+            # Recorder
+            from zvdata.recorder import Recorder
+            if issubclass(recorder_class, Recorder):
+                r = recorder_class(batch_size=batch_size,
+                                   force_update=force_update,
+                                   sleeping_time=sleeping_time)
+                r.run()
+                return
+        else:
+            print(f'no recorders for {cls.__name__}')
+
 
 class NormalMixin(Mixin):
     # the record created time in db
