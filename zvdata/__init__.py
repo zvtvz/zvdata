@@ -6,92 +6,6 @@ import pandas as pd
 from sqlalchemy import Column, String, DateTime
 
 
-class Mixin(object):
-    id = Column(String, primary_key=True)
-    entity_id = Column(String)
-
-    # the meaning could be different for different case,most of time it means 'happen time'
-    timestamp = Column(DateTime)
-
-    @classmethod
-    def important_cols(cls):
-        return []
-
-    @classmethod
-    def time_field(cls):
-        return 'timestamp'
-
-    @classmethod
-    def register_recorder_cls(cls, recorder_cls):
-        # make sure recorder_classes is created for every class
-        if not hasattr(cls, 'recorders'):
-            cls.recorders = []
-        if recorder_cls not in cls.recorders:
-            cls.recorders.append(recorder_cls)
-
-    def fetch_data(self,
-                   recorder_index: int = 0,
-                   entity_ids=None,
-                   codes=None,
-                   batch_size=10,
-                   force_update=False,
-                   sleeping_time=5,
-                   default_size=2000,
-                   real_time=False,
-                   fix_duplicate_way='add',
-                   start_timestamp=None,
-                   end_timestamp=None,
-                   close_hour=0,
-                   close_minute=0):
-        cls = self.__class__
-        if hasattr(cls, 'recorders') and cls.recorders:
-            recorder_class = cls.recorders[recorder_index]
-            print(f'{cls.__name__} registered recorders:{cls.recorders}')
-
-            from zvdata.recorder import TimeSeriesDataRecorder
-
-            # TimeSeriesDataRecorder
-            if issubclass(recorder_class, TimeSeriesDataRecorder):
-                r = recorder_class(entity_ids=entity_ids, codes=codes, batch_size=batch_size, force_update=force_update,
-                                   sleeping_time=sleeping_time, default_size=default_size, real_time=real_time,
-                                   fix_duplicate_way=fix_duplicate_way, start_timestamp=start_timestamp,
-                                   end_timestamp=end_timestamp, close_hour=close_hour, close_minute=close_minute)
-                r.run()
-                return
-
-            # Recorder
-            from zvdata.recorder import Recorder
-            if issubclass(recorder_class, Recorder):
-                r = recorder_class(batch_size=batch_size,
-                                   force_update=force_update,
-                                   sleeping_time=sleeping_time)
-                r.run()
-                return
-        else:
-            print(f'no recorders for {cls.__name__}')
-
-
-class NormalMixin(Mixin):
-    # the record created time in db
-    created_timestamp = Column(DateTime, default=pd.Timestamp.now())
-    # the record updated time in db, some recorder would check it for whether need to refresh
-    updated_timestamp = Column(DateTime)
-
-
-class EntityMixin(Mixin):
-    entity_type = Column(String(length=64))
-    exchange = Column(String(length=32))
-    code = Column(String(length=64))
-    name = Column(String(length=128))
-
-
-class NormalEntityMixin(EntityMixin):
-    # the record created time in db
-    created_timestamp = Column(DateTime, default=pd.Timestamp.now())
-    # the record updated time in db, some recorder would check it for whether need to refresh
-    updated_timestamp = Column(DateTime)
-
-
 class IntervalLevel(enum.Enum):
     LEVEL_TICK = 'tick'
     LEVEL_1MIN = '1m'
@@ -208,3 +122,104 @@ class IntervalLevel(enum.Enum):
         if self.__class__ is other.__class__:
             return self.to_ms() < other.to_ms()
         return NotImplemented
+
+
+class Mixin(object):
+    id = Column(String, primary_key=True)
+    entity_id = Column(String)
+
+    # the meaning could be different for different case,most of time it means 'happen time'
+    timestamp = Column(DateTime)
+
+    @classmethod
+    def important_cols(cls):
+        return []
+
+    @classmethod
+    def time_field(cls):
+        return 'timestamp'
+
+    @classmethod
+    def register_recorder_cls(cls, recorder_cls):
+        # make sure recorder_classes is created for every class
+        if not hasattr(cls, 'recorders'):
+            cls.recorders = []
+        if recorder_cls not in cls.recorders:
+            cls.recorders.append(recorder_cls)
+
+    @classmethod
+    def fetch_data(cls,
+                   recorder_index: int = 0,
+                   entity_ids=None,
+                   codes=None,
+                   batch_size=10,
+                   force_update=False,
+                   sleeping_time=5,
+                   default_size=2000,
+                   real_time=False,
+                   fix_duplicate_way='add',
+                   start_timestamp=None,
+                   end_timestamp=None,
+                   close_hour=0,
+                   close_minute=0):
+        if hasattr(cls, 'recorders') and cls.recorders:
+            recorder_class = cls.recorders[recorder_index]
+            print(f'{cls.__name__} registered recorders:{cls.recorders}')
+
+            # FixedCycleDataRecorder
+            from zvdata.recorder import FixedCycleDataRecorder
+            if issubclass(recorder_class, FixedCycleDataRecorder):
+                # contract:
+                # 1)use FixedCycleDataRecorder to record the data with IntervalLevel
+                # 2)the table of schema with IntervalLevel format is {entity}_{level}_{event}
+                table: str = cls.__tablename__
+                level = IntervalLevel(table.split('_')[1])
+                r = recorder_class(entity_ids=entity_ids, codes=codes, batch_size=batch_size, force_update=force_update,
+                                   sleeping_time=sleeping_time, default_size=default_size, real_time=real_time,
+                                   fix_duplicate_way=fix_duplicate_way, start_timestamp=start_timestamp,
+                                   end_timestamp=end_timestamp, close_hour=close_hour, close_minute=close_minute,
+                                   level=level)
+                r.run()
+                return
+
+            # TimeSeriesDataRecorder
+            from zvdata.recorder import TimeSeriesDataRecorder
+            if issubclass(recorder_class, TimeSeriesDataRecorder):
+                r = recorder_class(entity_ids=entity_ids, codes=codes, batch_size=batch_size, force_update=force_update,
+                                   sleeping_time=sleeping_time, default_size=default_size, real_time=real_time,
+                                   fix_duplicate_way=fix_duplicate_way, start_timestamp=start_timestamp,
+                                   end_timestamp=end_timestamp, close_hour=close_hour, close_minute=close_minute)
+                r.run()
+                return
+
+            # Recorder
+            from zvdata.recorder import Recorder
+            if issubclass(recorder_class, Recorder):
+                r = recorder_class(batch_size=batch_size,
+                                   force_update=force_update,
+                                   sleeping_time=sleeping_time)
+                r.run()
+                return
+        else:
+            print(f'no recorders for {cls.__name__}')
+
+
+class NormalMixin(Mixin):
+    # the record created time in db
+    created_timestamp = Column(DateTime, default=pd.Timestamp.now())
+    # the record updated time in db, some recorder would check it for whether need to refresh
+    updated_timestamp = Column(DateTime)
+
+
+class EntityMixin(Mixin):
+    entity_type = Column(String(length=64))
+    exchange = Column(String(length=32))
+    code = Column(String(length=64))
+    name = Column(String(length=128))
+
+
+class NormalEntityMixin(EntityMixin):
+    # the record created time in db
+    created_timestamp = Column(DateTime, default=pd.Timestamp.now())
+    # the record updated time in db, some recorder would check it for whether need to refresh
+    updated_timestamp = Column(DateTime)

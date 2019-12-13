@@ -7,7 +7,7 @@ from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import Query, Session
 
 from zvdata import IntervalLevel
-from zvdata.contract import get_db_name, get_db_session, get_db_engine, global_entity_schema, global_providers, \
+from zvdata.contract import get_db_session, get_db_engine, global_entity_schema, global_providers, \
     get_schema_columns
 from zvdata.utils.pd_utils import pd_is_not_null, index_df
 from zvdata.utils.time_utils import to_pd_timestamp
@@ -59,6 +59,7 @@ def get_data(data_schema,
              entity_ids: List[str] = None,
              entity_id: str = None,
              codes: List[str] = None,
+             code: str = None,
              level: Union[IntervalLevel, str] = None,
              provider: str = None,
              columns: List = None,
@@ -69,7 +70,7 @@ def get_data(data_schema,
              session: Session = None,
              order=None,
              limit: int = None,
-             index: str = None,
+             index: Union[str, list] = None,
              time_field: str = 'timestamp'):
     assert data_schema is not None
     assert provider is not None
@@ -99,10 +100,12 @@ def get_data(data_schema,
 
     if entity_id:
         query = query.filter(data_schema.entity_id == entity_id)
-    if codes:
-        query = query.filter(data_schema.code.in_(codes))
     if entity_ids:
         query = query.filter(data_schema.entity_id.in_(entity_ids))
+    if code:
+        query = query.filter(data_schema.code == code)
+    if codes:
+        query = query.filter(data_schema.code.in_(codes))
     if ids:
         query = query.filter(data_schema.id.in_(ids))
 
@@ -125,7 +128,7 @@ def get_data(data_schema,
         df = pd.read_sql(query.statement, query.session.bind)
         if pd_is_not_null(df):
             if index:
-                return index_df(df, drop=False, index=index, time_field=time_field)
+                df = index_df(df, drop=False, index=index, time_field=time_field)
         return df
     elif return_type == 'domain':
         return query.all()
@@ -167,7 +170,10 @@ def decode_entity_id(entity_id: str):
     return entity_type, exchange, code
 
 
-def df_to_db(df: pd.DataFrame, data_schema: DeclarativeMeta, provider: str, force_update: bool = False) -> object:
+def df_to_db(df: pd.DataFrame,
+             data_schema: DeclarativeMeta,
+             provider: str,
+             force_update: bool = False) -> object:
     """
     store the df to db
 
@@ -228,41 +234,29 @@ def df_to_db(df: pd.DataFrame, data_schema: DeclarativeMeta, provider: str, forc
         df_current.to_sql(data_schema.__tablename__, db_engine, index=False, if_exists='append')
 
 
-def init_entities(df, entity_type='stock', provider='exchange'):
-    df = df.drop_duplicates(subset=['id'])
-    data_schema = get_entity_schema(entity_type)
-    store_category = get_db_name(data_schema=data_schema)
-
-    db_engine = get_db_engine(provider, db_name=store_category)
-    security_schema = get_entity_schema(entity_type)
-
-    current = get_entities(entity_type=entity_type, columns=[security_schema.id, security_schema.code],
-                           provider=provider)
-
-    if pd_is_not_null(current):
-        df = df[~df['id'].isin(current['id'])]
-
-    df.to_sql(security_schema.__tablename__, db_engine, index=False, if_exists='append')
+def persist_entities(df, entity_type='stock', provider='exchange'):
+    df_to_db(df=df, data_schema=get_entity_schema(entity_type), provider=provider, force_update=False)
 
 
 def get_entities(
         entity_schema=None,
-        entity_ids: List[str] = None,
         entity_type: str = None,
         exchanges: List[str] = None,
+        ids: List[str] = None,
+        entity_ids: List[str] = None,
+        entity_id: str = None,
         codes: List[str] = None,
+        code: str = None,
+        provider: str = None,
         columns: List = None,
         return_type: str = 'df',
-        session: Session = None,
-        start_timestamp: Union[str, pd.Timestamp] = None,
-        end_timestamp: Union[str, pd.Timestamp] = None,
+        start_timestamp: Union[pd.Timestamp, str] = None,
+        end_timestamp: Union[pd.Timestamp, str] = None,
         filters: List = None,
-        order: object = None,
+        session: Session = None,
+        order=None,
         limit: int = None,
-        provider: str = None,
-        index: str = 'code') -> object:
-    assert provider in global_providers
-
+        index: Union[str, list] = 'code') -> object:
     if not entity_schema:
         entity_schema = global_entity_schema[entity_type]
 
@@ -275,9 +269,10 @@ def get_entities(
         else:
             filters = [entity_schema.exchange.in_(exchanges)]
 
-    return get_data(data_schema=entity_schema, entity_ids=entity_ids, entity_id=None, codes=codes, level=None,
-                    provider=provider, columns=columns, return_type=return_type, start_timestamp=start_timestamp,
-                    end_timestamp=end_timestamp, filters=filters, session=session, order=order, limit=limit,
+    return get_data(data_schema=entity_schema, ids=ids, entity_ids=entity_ids, entity_id=entity_id, codes=codes,
+                    code=code, level=None, provider=provider, columns=columns, return_type=return_type,
+                    start_timestamp=start_timestamp, end_timestamp=end_timestamp, filters=filters, session=session,
+                    order=order, limit=limit,
                     index=index)
 
 

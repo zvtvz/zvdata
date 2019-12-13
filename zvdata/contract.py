@@ -286,9 +286,11 @@ api_template = '''
 {}
 
 def get_{}(
+        ids: List[str] = None,
         entity_ids: List[str] = None,
         entity_id: str = None,
         codes: List[str] = None,
+        code: str = None,
         level: Union[IntervalLevel, str] = None,
         provider: str = \'{}\',
         columns: List = None,
@@ -299,13 +301,12 @@ def get_{}(
         session: Session = None,
         order=None,
         limit: int = None,
-        index: str = 'timestamp',
+        index: Union[str, list] = 'timestamp',
         time_field: str = 'timestamp'):
-    return get_data(data_schema={}, entity_ids=entity_ids, entity_id=entity_id, codes=codes, level=level,
-                    provider=provider,
-                    columns=columns, return_type=return_type, start_timestamp=start_timestamp,
-                    end_timestamp=end_timestamp, filters=filters, session=session, order=order, limit=limit,
-                    index=index, time_field=time_field)
+    return get_data(data_schema={}, ids=ids, entity_ids=entity_ids, entity_id=entity_id, codes=codes,
+                    code=code, level=level, provider=provider, columns=columns, return_type=return_type,
+                    start_timestamp=start_timestamp, end_timestamp=end_timestamp, filters=filters, session=session,
+                    order=order, limit=limit,index=index,time_field=time_field)
 '''
 
 
