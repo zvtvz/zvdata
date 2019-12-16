@@ -528,9 +528,12 @@ class TimestampsDataRecorder(TimeSeriesDataRecorder):
                  real_time=False,
                  fix_duplicate_way='add',
                  start_timestamp=None,
-                 end_timestamp=None) -> None:
+                 end_timestamp=None,
+                 close_hour=0,
+                 close_minute=0) -> None:
         super().__init__(entity_type, exchanges, entity_ids, codes, batch_size, force_update, sleeping_time,
-                         default_size, real_time, fix_duplicate_way, start_timestamp, end_timestamp)
+                         default_size, real_time, fix_duplicate_way, start_timestamp, end_timestamp,
+                         close_hour=close_hour, close_minute=close_minute)
         self.security_timestamps_map = {}
 
     def init_timestamps(self, entity_item) -> List[pd.Timestamp]:

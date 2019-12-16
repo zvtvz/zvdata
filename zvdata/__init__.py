@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import enum
+import inspect
 import math
 
 import pandas as pd
@@ -132,6 +133,10 @@ class Mixin(object):
     timestamp = Column(DateTime)
 
     @classmethod
+    def help(cls):
+        print(inspect.getsource(cls))
+
+    @classmethod
     def important_cols(cls):
         return []
 
@@ -150,6 +155,7 @@ class Mixin(object):
     @classmethod
     def fetch_data(cls,
                    recorder_index: int = 0,
+                   exchanges=None,
                    entity_ids=None,
                    codes=None,
                    batch_size=10,
@@ -174,21 +180,22 @@ class Mixin(object):
                 # 2)the table of schema with IntervalLevel format is {entity}_{level}_{event}
                 table: str = cls.__tablename__
                 level = IntervalLevel(table.split('_')[1])
-                r = recorder_class(entity_ids=entity_ids, codes=codes, batch_size=batch_size, force_update=force_update,
-                                   sleeping_time=sleeping_time, default_size=default_size, real_time=real_time,
-                                   fix_duplicate_way=fix_duplicate_way, start_timestamp=start_timestamp,
-                                   end_timestamp=end_timestamp, close_hour=close_hour, close_minute=close_minute,
-                                   level=level)
+                r = recorder_class(exchanges=exchanges, entity_ids=entity_ids, codes=codes, batch_size=batch_size,
+                                   force_update=force_update, sleeping_time=sleeping_time, default_size=default_size,
+                                   real_time=real_time, fix_duplicate_way=fix_duplicate_way,
+                                   start_timestamp=start_timestamp, end_timestamp=end_timestamp, close_hour=close_hour,
+                                   close_minute=close_minute, level=level)
                 r.run()
                 return
 
             # TimeSeriesDataRecorder
             from zvdata.recorder import TimeSeriesDataRecorder
             if issubclass(recorder_class, TimeSeriesDataRecorder):
-                r = recorder_class(entity_ids=entity_ids, codes=codes, batch_size=batch_size, force_update=force_update,
-                                   sleeping_time=sleeping_time, default_size=default_size, real_time=real_time,
-                                   fix_duplicate_way=fix_duplicate_way, start_timestamp=start_timestamp,
-                                   end_timestamp=end_timestamp, close_hour=close_hour, close_minute=close_minute)
+                r = recorder_class(exchanges=exchanges, entity_ids=entity_ids, codes=codes, batch_size=batch_size,
+                                   force_update=force_update, sleeping_time=sleeping_time, default_size=default_size,
+                                   real_time=real_time, fix_duplicate_way=fix_duplicate_way,
+                                   start_timestamp=start_timestamp, end_timestamp=end_timestamp, close_hour=close_hour,
+                                   close_minute=close_minute)
                 r.run()
                 return
 
