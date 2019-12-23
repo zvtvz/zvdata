@@ -2,9 +2,11 @@
 import enum
 import inspect
 import math
+from typing import List, Union
 
 import pandas as pd
 from sqlalchemy import Column, String, DateTime
+from sqlalchemy.orm import Session
 
 
 class IntervalLevel(enum.Enum):
@@ -153,21 +155,56 @@ class Mixin(object):
             cls.recorders.append(recorder_cls)
 
     @classmethod
-    def fetch_data(cls,
-                   recorder_index: int = 0,
-                   exchanges=None,
-                   entity_ids=None,
-                   codes=None,
-                   batch_size=10,
-                   force_update=False,
-                   sleeping_time=5,
-                   default_size=2000,
-                   real_time=False,
-                   fix_duplicate_way='add',
-                   start_timestamp=None,
-                   end_timestamp=None,
-                   close_hour=0,
-                   close_minute=0):
+    def register_provider(cls, provider):
+        if not hasattr(cls, 'providers'):
+            cls.providers = []
+        if provider not in cls.providers:
+            cls.providers.append(provider)
+
+    @classmethod
+    def query_data(cls,
+                   provider_index: int = 0,
+                   ids: List[str] = None,
+                   entity_ids: List[str] = None,
+                   entity_id: str = None,
+                   codes: List[str] = None,
+                   code: str = None,
+                   level: Union[IntervalLevel, str] = None,
+                   provider: str = None,
+                   columns: List = None,
+                   return_type: str = 'df',
+                   start_timestamp: Union[pd.Timestamp, str] = None,
+                   end_timestamp: Union[pd.Timestamp, str] = None,
+                   filters: List = None,
+                   session: Session = None,
+                   order=None,
+                   limit: int = None,
+                   index: Union[str, list] = None,
+                   time_field: str = 'timestamp'):
+        from .api import get_data
+        if not provider:
+            provider = cls.providers[provider_index]
+        return get_data(data_schema=cls, ids=ids, entity_ids=entity_ids, entity_id=entity_id, codes=codes,
+                        code=code, level=level, provider=provider, columns=columns, return_type=return_type,
+                        start_timestamp=start_timestamp, end_timestamp=end_timestamp, filters=filters, session=session,
+                        order=order, limit=limit, index=index, time_field=time_field)
+
+    @classmethod
+    def record_data(cls,
+                    recorder_index: int = 0,
+                    exchanges=None,
+                    entity_ids=None,
+                    codes=None,
+                    batch_size=10,
+                    force_update=False,
+                    sleeping_time=5,
+                    default_size=2000,
+                    real_time=False,
+                    fix_duplicate_way='add',
+                    start_timestamp=None,
+                    end_timestamp=None,
+                    close_hour=0,
+                    close_minute=0):
         if hasattr(cls, 'recorders') and cls.recorders:
             recorder_class = cls.recorders[recorder_index]
             print(f'{cls.__name__} registered recorders:{cls.recorders}')

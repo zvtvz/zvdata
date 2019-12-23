@@ -8,7 +8,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import sessionmaker, Session
 
-from zvdata import EntityMixin
+from zvdata import EntityMixin, Mixin
 from zvdata.utils.utils import add_to_map_list
 
 logger = logging.getLogger(__name__)
@@ -402,6 +402,11 @@ def register_schema(providers: List[str],
     for item in schema_base._decl_class_registry.items():
         cls = item[1]
         if type(cls) == DeclarativeMeta:
+            # register provider to the schema
+            for provider in providers:
+                if issubclass(cls, Mixin):
+                    cls.register_provider(provider)
+
             if _dbname_map_schemas.get(db_name):
                 schemas = _dbname_map_schemas[db_name]
             global_schemas.append(cls)

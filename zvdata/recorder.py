@@ -20,7 +20,7 @@ class Meta(type):
         # register the recorder class to the data_schema
         if hasattr(cls, 'data_schema'):
             if cls.data_schema and issubclass(cls.data_schema, Mixin):
-                print(f'{cls.data_schema.__name__}')
+                print(f'{cls.__name__}:{cls.data_schema.__name__}')
                 cls.data_schema.register_recorder_cls(cls)
         return cls
 
@@ -52,6 +52,7 @@ class Recorder(metaclass=Meta):
 
         assert self.provider is not None
         assert self.data_schema is not None
+        assert self.provider in self.data_schema.providers
 
         self.batch_size = batch_size
         self.force_update = force_update
