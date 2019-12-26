@@ -10,7 +10,7 @@ from zvdata import IntervalLevel, Mixin
 from zvdata.api import get_entities, get_data
 from zvdata.contract import get_db_session
 from zvdata.utils.time_utils import to_pd_timestamp, TIME_FORMAT_DAY, to_time_str, \
-    evaluate_size_from_timestamp, is_in_same_interval
+    evaluate_size_from_timestamp, is_in_same_interval, now_timestamp
 from zvdata.utils.utils import fill_domain_from_dict
 
 
@@ -366,7 +366,6 @@ class TimeSeriesDataRecorder(RecorderForEntities):
 
                     if original_list:
                         domain_list = []
-                        duplicate_count = 0
                         for original_item in original_list:
                             updated, domain_item = self.generate_domain(entity_item, original_item)
 
@@ -379,8 +378,7 @@ class TimeSeriesDataRecorder(RecorderForEntities):
                                 if duplicate:
                                     # regenerate the id
                                     if self.fix_duplicate_way == 'add':
-                                        duplicate_count += 1
-                                        domain_item.id = "{}_{}".format(domain_item.id, duplicate_count)
+                                        domain_item.id = "{}_{}".format(domain_item.id, now_timestamp())
                                     # ignore
                                     else:
                                         continue
