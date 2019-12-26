@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 import time
+import uuid
 from typing import List
 
 import pandas as pd
@@ -10,7 +11,7 @@ from zvdata import IntervalLevel, Mixin
 from zvdata.api import get_entities, get_data
 from zvdata.contract import get_db_session
 from zvdata.utils.time_utils import to_pd_timestamp, TIME_FORMAT_DAY, to_time_str, \
-    evaluate_size_from_timestamp, is_in_same_interval, now_timestamp
+    evaluate_size_from_timestamp, is_in_same_interval
 from zvdata.utils.utils import fill_domain_from_dict
 
 
@@ -378,7 +379,7 @@ class TimeSeriesDataRecorder(RecorderForEntities):
                                 if duplicate:
                                     # regenerate the id
                                     if self.fix_duplicate_way == 'add':
-                                        domain_item.id = "{}_{}".format(domain_item.id, now_timestamp())
+                                        domain_item.id = "{}_{}".format(domain_item.id, uuid.uuid1())
                                     # ignore
                                     else:
                                         continue
