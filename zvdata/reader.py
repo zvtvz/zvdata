@@ -6,8 +6,8 @@ from typing import List, Union
 
 import pandas as pd
 
-from zvdata import IntervalLevel
-from zvdata.api import get_data, get_entity_ids
+from zvdata import IntervalLevel, Mixin
+from zvdata.api import get_entity_ids
 from zvdata.utils.pd_utils import pd_is_not_null
 from zvdata.utils.time_utils import to_pd_timestamp, now_pd_timestamp
 
@@ -46,7 +46,7 @@ class DataReader(object):
     logger = logging.getLogger(__name__)
 
     def __init__(self,
-                 data_schema: object,
+                 data_schema: Mixin,
                  entity_provider: str = None,
                  entity_ids: List[str] = None,
                  entity_type: str = 'stock',
@@ -59,7 +59,7 @@ class DataReader(object):
                  filters: List = None,
                  order: object = None,
                  limit: int = None,
-                 provider: str = 'joinquant',
+                 provider: str = None,
                  level: IntervalLevel = IntervalLevel.LEVEL_1DAY,
                  category_field: str = 'entity_id',
                  time_field: str = 'timestamp',
@@ -140,14 +140,13 @@ class DataReader(object):
 
         dfs = []
         for entity_id in self.entity_ids:
-            df = get_data(provider=provider,
-                          data_schema=data_schema,
-                          start_timestamp=self.start_timestamp,
-                          end_timestamp=self.end_timestamp,
-                          index=[self.category_field, self.time_field],
-                          order=data_schema.timestamp.desc(),
-                          entity_id=entity_id,
-                          limit=window)
+            df = self.data_schema.query_data(provider=provider,
+                                             start_timestamp=self.start_timestamp,
+                                             end_timestamp=self.end_timestamp,
+                                             index=[self.category_field, self.time_field],
+                                             order=data_schema.timestamp.desc(),
+                                             entity_id=entity_id,
+                                             limit=window)
             if pd_is_not_null(df):
                 dfs.append(df)
         if dfs:
@@ -159,14 +158,15 @@ class DataReader(object):
         self.logger.info('load_data start')
         start_time = time.time()
 
-        self.data_df = get_data(data_schema=self.data_schema, entity_ids=self.entity_ids,
-                                provider=self.provider, columns=self.columns,
-                                start_timestamp=self.start_timestamp,
-                                end_timestamp=self.end_timestamp, filters=self.filters, order=self.order,
-                                limit=self.limit,
-                                level=self.level,
-                                index=[self.category_field, self.time_field],
-                                time_field=self.time_field)
+        self.data_df = self.data_schema.query_data(entity_ids=self.entity_ids,
+                                                   provider=self.provider, columns=self.columns,
+                                                   start_timestamp=self.start_timestamp,
+                                                   end_timestamp=self.end_timestamp, filters=self.filters,
+                                                   order=self.order,
+                                                   limit=self.limit,
+                                                   level=self.level,
+                                                   index=[self.category_field, self.time_field],
+                                                   time_field=self.time_field)
 
         cost_time = time.time() - start_time
         self.logger.info('load_data finish cost_time:{}'.format(cost_time))
@@ -216,9 +216,10 @@ class DataReader(object):
                 else:
                     filters = added_filter
 
-                added_df = get_data(data_schema=self.data_schema, provider=self.provider, columns=self.columns,
-                                    end_timestamp=to_timestamp, filters=filters, level=self.level,
-                                    index=[self.category_field, self.time_field])
+                added_df = self.data_schema.query_data(provider=self.provider,
+                                                       columns=self.columns,
+                                                       end_timestamp=to_timestamp, filters=filters, level=self.level,
+                                                       index=[self.category_field, self.time_field])
 
                 if pd_is_not_null(added_df):
                     self.logger.info('entity_id:{},added:\n{}'.format(entity_id, added_df))
