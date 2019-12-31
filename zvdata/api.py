@@ -170,6 +170,21 @@ def decode_entity_id(entity_id: str):
     return entity_type, exchange, code
 
 
+def get_entity_type(entity_id: str):
+    entity_type, _, _ = decode_entity_id(entity_id)
+    return entity_type
+
+
+def get_entity_exchange(entity_id: str):
+    _, exchange, _ = decode_entity_id(entity_id)
+    return exchange
+
+
+def get_entity_code(entity_id: str):
+    _, _, code = decode_entity_id(entity_id)
+    return code
+
+
 def df_to_db(df: pd.DataFrame,
              data_schema: DeclarativeMeta,
              provider: str,
