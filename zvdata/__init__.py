@@ -129,6 +129,7 @@ class IntervalLevel(enum.Enum):
 
 class Mixin(object):
     id = Column(String, primary_key=True)
+    # entity id for this model
     entity_id = Column(String)
 
     # the meaning could be different for different case,most of time it means 'happen time'
