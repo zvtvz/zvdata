@@ -370,7 +370,7 @@ class TimeSeriesDataRecorder(RecorderForEntities):
                         for original_item in original_list:
                             updated, domain_item = self.generate_domain(entity_item, original_item)
 
-                            if not updated:
+                            if not updated and domain_item:
                                 all_duplicated = False
 
                             # handle the case  generate_domain_id generate duplicate id
