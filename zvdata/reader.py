@@ -6,8 +6,8 @@ from typing import List, Union
 
 import pandas as pd
 
-from zvdata import IntervalLevel, Mixin
-from zvdata.api import get_entity_ids
+from zvdata import IntervalLevel, Mixin, EntityMixin
+from zvdata.api import get_entities
 from zvdata.utils.pd_utils import pd_is_not_null
 from zvdata.utils.time_utils import to_pd_timestamp, now_pd_timestamp
 
@@ -47,10 +47,11 @@ class DataReader(object):
 
     def __init__(self,
                  data_schema: Mixin,
+                 entity_schema: EntityMixin,
+                 provider: str = None,
                  entity_provider: str = None,
                  entity_ids: List[str] = None,
-                 entity_type: str = 'stock',
-                 exchanges: List[str] = ['sh', 'sz'],
+                 exchanges: List[str] = None,
                  codes: List[str] = None,
                  the_timestamp: Union[str, pd.Timestamp] = None,
                  start_timestamp: Union[str, pd.Timestamp] = None,
@@ -59,7 +60,6 @@ class DataReader(object):
                  filters: List = None,
                  order: object = None,
                  limit: int = None,
-                 provider: str = None,
                  level: IntervalLevel = IntervalLevel.LEVEL_1DAY,
                  category_field: str = 'entity_id',
                  time_field: str = 'timestamp',
@@ -67,6 +67,10 @@ class DataReader(object):
         self.logger = logging.getLogger(self.__class__.__name__)
 
         self.data_schema = data_schema
+        self.entity_schema = entity_schema
+
+        self.provider = provider
+        self.entity_provider = entity_provider
 
         self.the_timestamp = the_timestamp
         if the_timestamp:
@@ -79,9 +83,8 @@ class DataReader(object):
         self.start_timestamp = to_pd_timestamp(self.start_timestamp)
         self.end_timestamp = to_pd_timestamp(self.end_timestamp)
 
-        self.entity_type = entity_type
-        self.entity_provider = entity_provider
         self.exchanges = exchanges
+
         if codes:
             if type(codes) == str:
                 codes = codes.replace(' ', '')
@@ -94,12 +97,13 @@ class DataReader(object):
         self.entity_ids = entity_ids
 
         # 转换成标准entity_id
-        if not self.entity_ids and self.entity_provider:
-            self.entity_ids = get_entity_ids(provider=self.entity_provider, entity_type=self.entity_type,
-                                             exchanges=self.exchanges,
-                                             codes=self.codes)
+        if not self.entity_ids:
+            df = get_entities(entity_schema=entity_schema, provider=self.entity_provider,
+                              exchanges=self.exchanges,
+                              codes=self.codes)
+            if pd_is_not_null(df):
+                self.entity_ids = df['entity_id'].to_list()
 
-        self.provider = provider
         self.filters = filters
         self.order = order
         self.limit = limit
@@ -272,12 +276,10 @@ class DataReader(object):
 
 
 if __name__ == '__main__':
-    from zvt.domain import Stock1dKdata
+    from zvt.domain import Stock1dKdata, Stock
 
-    data_reader = DataReader(codes=['002572', '000338'], data_schema=Stock1dKdata, provider='joinquant',
+    data_reader = DataReader(codes=['002572', '000338'], data_schema=Stock1dKdata, entity_schema=Stock,
                              start_timestamp='2017-01-01',
                              end_timestamp='2019-06-10')
 
-    for timestamp in pd.date_range(start='2019-06-10', end='2019-10-10'):
-        data_reader.move_on(timestamp)
-        print(data_reader.data_df.iloc[0])
+    print(data_reader.data_df)

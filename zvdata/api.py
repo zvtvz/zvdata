@@ -6,7 +6,7 @@ from sqlalchemy import func, exists, and_
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import Query, Session
 
-from zvdata import IntervalLevel
+from zvdata import IntervalLevel, EntityMixin
 from zvdata.contract import get_db_session, get_db_engine, global_entity_schema, global_providers, \
     get_schema_columns
 from zvdata.utils.pd_utils import pd_is_not_null, index_df
@@ -249,12 +249,8 @@ def df_to_db(df: pd.DataFrame,
         df_current.to_sql(data_schema.__tablename__, db_engine, index=False, if_exists='append')
 
 
-def persist_entities(df, entity_type='stock', provider='exchange'):
-    df_to_db(df=df, data_schema=get_entity_schema(entity_type), provider=provider, force_update=False)
-
-
 def get_entities(
-        entity_schema=None,
+        entity_schema: EntityMixin = None,
         entity_type: str = None,
         exchanges: List[str] = None,
         ids: List[str] = None,
@@ -275,6 +271,9 @@ def get_entities(
     if not entity_schema:
         entity_schema = global_entity_schema[entity_type]
 
+    if not provider:
+        provider = entity_schema.providers[0]
+
     if not order:
         order = entity_schema.code.asc()
 
@@ -291,8 +290,8 @@ def get_entities(
                     index=index)
 
 
-def get_entity_ids(entity_type='stock', exchanges=['sz', 'sh'], codes=None, provider='eastmoney'):
-    df = get_entities(entity_type=entity_type, exchanges=exchanges, codes=codes,
+def get_entity_ids(entity_type='stock', entity_schema: EntityMixin = None, exchanges=None, codes=None, provider=None):
+    df = get_entities(entity_type=entity_type, entity_schema=entity_schema, exchanges=exchanges, codes=codes,
                       provider=provider)
     if pd_is_not_null(df):
         return df['entity_id'].to_list()
