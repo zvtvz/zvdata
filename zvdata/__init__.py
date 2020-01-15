@@ -148,17 +148,26 @@ class Mixin(object):
         return 'timestamp'
 
     @classmethod
-    def register_recorder_cls(cls, recorder_cls):
-        # make sure recorder_classes is created for every class
-        if not hasattr(cls, 'recorders'):
-            cls.recorders = []
-        if recorder_cls not in cls.recorders:
-            cls.recorders.append(recorder_cls)
+    def register_recorder_cls(cls, provider, recorder_cls):
+        """
+        register the recorder for the schema
+
+        :param provider:
+        :param recorder_cls:
+        """
+        # dont't make provider_map_recorder as class field,it should be created for the sub class as need
+        if not hasattr(cls, 'provider_map_recorder'):
+            cls.provider_map_recorder = {}
+
+        if provider not in cls.provider_map_recorder:
+            cls.provider_map_recorder[provider] = recorder_cls
 
     @classmethod
     def register_provider(cls, provider):
+        # dont't make providers as class field,it should be created for the sub class as need
         if not hasattr(cls, 'providers'):
             cls.providers = []
+
         if provider not in cls.providers:
             cls.providers.append(provider)
 
@@ -192,7 +201,8 @@ class Mixin(object):
 
     @classmethod
     def record_data(cls,
-                    recorder_index: int = 0,
+                    provider_index: int = 0,
+                    provider: str = None,
                     exchanges=None,
                     entity_ids=None,
                     codes=None,
@@ -206,9 +216,13 @@ class Mixin(object):
                     end_timestamp=None,
                     close_hour=0,
                     close_minute=0):
-        if hasattr(cls, 'recorders') and cls.recorders:
-            recorder_class = cls.recorders[recorder_index]
-            print(f'{cls.__name__} registered recorders:{cls.recorders}')
+        if cls.provider_map_recorder:
+            print(f'{cls.__name__} registered recorders:{cls.provider_map_recorder}')
+
+            if provider:
+                recorder_class = cls.provider_map_recorder[provider]
+            else:
+                recorder_class = cls.provider_map_recorder[cls.providers[provider_index]]
 
             # FixedCycleDataRecorder
             from zvdata.recorder import FixedCycleDataRecorder
