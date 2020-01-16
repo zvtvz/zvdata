@@ -6,7 +6,7 @@ import requests
 
 from tests.consts import DEFAULT_SH_HEADER, DEFAULT_SZ_HEADER
 from tests.domain import *
-from zvdata.api import persist_entities, get_entities, get_data
+from zvdata.api import get_entities, get_data, df_to_db
 from zvdata.contract import generate_api
 from zvdata.recorder import Recorder
 from zvdata.utils.time_utils import to_pd_timestamp
@@ -61,7 +61,7 @@ class ChinaStockListSpider(Recorder):
             df['timestamp'] = df['list_date']
             df = df.dropna(axis=0, how='any')
             df = df.drop_duplicates(subset=('id'), keep='last')
-            persist_entities(df, provider=self.provider)
+            df_to_db(df, data_schema=Stock, provider=self.provider)
 
 
 # ChinaStockListSpider().run()
