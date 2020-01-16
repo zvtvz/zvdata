@@ -7,7 +7,7 @@ from typing import List
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from zvdata import IntervalLevel, Mixin
+from zvdata import IntervalLevel, Mixin, EntityMixin
 from zvdata.api import get_entities, get_data
 from zvdata.contract import get_db_session
 from zvdata.utils.time_utils import to_pd_timestamp, TIME_FORMAT_DAY, to_time_str, \
@@ -73,7 +73,7 @@ class Recorder(metaclass=Meta):
 class RecorderForEntities(Recorder):
     # overwrite them to fetch the entity list
     entity_provider: str = None
-    entity_schema = None
+    entity_schema: EntityMixin = None
 
     def __init__(self,
                  entity_type='stock',
@@ -118,6 +118,10 @@ class RecorderForEntities(Recorder):
         self.init_entities()
 
     def init_entities(self):
+        """
+        init the entities which we would record data for
+
+        """
         if self.entity_provider == self.provider and self.entity_schema == self.data_schema:
             self.entity_session = self.session
         else:
@@ -256,20 +260,24 @@ class TimeSeriesDataRecorder(RecorderForEntities):
         :param original_data:
         """
 
-        updated = False
+        got_new_data = False
 
         # if the domain is directly generated in record method, we just return it
         if isinstance(original_data, self.data_schema):
-            return updated, original_data
+            got_new_data = True
+            return got_new_data, original_data
 
         the_id = self.generate_domain_id(entity, original_data)
+
+        # optional way
+        # item = self.session.query(self.data_schema).get(the_id)
 
         items = get_data(data_schema=self.data_schema, session=self.session, provider=self.provider,
                          entity_id=entity.id, filters=[self.data_schema.id == the_id], return_type='domain')
 
         if items and not self.force_update:
             self.logger.info('ignore the data {}:{} saved before'.format(self.data_schema, the_id))
-            return updated, None
+            return got_new_data, None
 
         if not items:
             timestamp_str = original_data[self.get_original_time_field()]
@@ -283,12 +291,12 @@ class TimeSeriesDataRecorder(RecorderForEntities):
                                            code=entity.code,
                                            entity_id=entity.id,
                                            timestamp=timestamp)
+            got_new_data = True
         else:
             domain_item = items[0]
-            updated = True
 
         fill_domain_from_dict(domain_item, original_data, self.get_data_map())
-        return updated, domain_item
+        return got_new_data, domain_item
 
     def persist(self, entity, domain_list):
         """
@@ -317,7 +325,14 @@ class TimeSeriesDataRecorder(RecorderForEntities):
             self.session.commit()
 
     def on_finish(self):
-        self.session.close()
+        try:
+            if self.session:
+                self.session.close()
+
+            if self.entity_session:
+                self.entity_session.close()
+        except Exception as e:
+            self.logger.error(e)
 
     def on_finish_entity(self, entity):
         pass
@@ -368,9 +383,9 @@ class TimeSeriesDataRecorder(RecorderForEntities):
                     if original_list:
                         domain_list = []
                         for original_item in original_list:
-                            updated, domain_item = self.generate_domain(entity_item, original_item)
+                            got_new_data, domain_item = self.generate_domain(entity_item, original_item)
 
-                            if not updated and domain_item:
+                            if got_new_data:
                                 all_duplicated = False
 
                             # handle the case  generate_domain_id generate duplicate id
@@ -382,6 +397,7 @@ class TimeSeriesDataRecorder(RecorderForEntities):
                                         domain_item.id = "{}_{}".format(domain_item.id, uuid.uuid1())
                                     # ignore
                                     else:
+                                        self.logger.info(f'ignore original duplicate item:{domain_item.id}')
                                         continue
 
                                 domain_list.append(domain_item)
@@ -389,7 +405,7 @@ class TimeSeriesDataRecorder(RecorderForEntities):
                         if domain_list:
                             self.persist(entity_item, domain_list)
                         else:
-                            self.logger.info('just get {} duplicated data in this cycle'.format(len(original_list)))
+                            self.logger.info('just got {} duplicated data in this cycle'.format(len(original_list)))
 
                     # could not get more data
                     entity_finished = False
@@ -476,6 +492,7 @@ class FixedCycleDataRecorder(TimeSeriesDataRecorder):
     def get_latest_saved_record(self, entity):
         order = eval('self.data_schema.{}.desc()'.format(self.get_evaluated_time_field()))
 
+        # 对于k线这种数据，最后一个记录有可能是没完成的，所以取两个，总是删掉最后一个数据，更新之
         records = get_data(entity_id=entity.id,
                            provider=self.provider,
                            data_schema=self.data_schema,
@@ -483,7 +500,7 @@ class FixedCycleDataRecorder(TimeSeriesDataRecorder):
                            limit=2,
                            return_type='domain',
                            session=self.session,
-                           level=self.level.value)
+                           level=self.level)
         if records:
             # delete unfinished kdata
             if len(records) == 2:

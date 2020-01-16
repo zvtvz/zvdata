@@ -99,8 +99,7 @@ class DataReader(object):
         # 转换成标准entity_id
         if not self.entity_ids:
             df = get_entities(entity_schema=entity_schema, provider=self.entity_provider,
-                              exchanges=self.exchanges,
-                              codes=self.codes)
+                              exchanges=self.exchanges, codes=self.codes)
             if pd_is_not_null(df):
                 self.entity_ids = df['entity_id'].to_list()
 
@@ -144,13 +143,11 @@ class DataReader(object):
 
         dfs = []
         for entity_id in self.entity_ids:
-            df = self.data_schema.query_data(provider=provider,
-                                             start_timestamp=self.start_timestamp,
-                                             end_timestamp=self.end_timestamp,
-                                             index=[self.category_field, self.time_field],
-                                             order=data_schema.timestamp.desc(),
-                                             entity_id=entity_id,
-                                             limit=window)
+            df = data_schema.query_data(provider=provider,
+                                        index=[self.category_field, self.time_field],
+                                        order=data_schema.timestamp.desc(),
+                                        entity_id=entity_id,
+                                        limit=window)
             if pd_is_not_null(df):
                 dfs.append(df)
         if dfs:
@@ -173,7 +170,7 @@ class DataReader(object):
                                                    time_field=self.time_field)
 
         cost_time = time.time() - start_time
-        self.logger.info('load_data finish cost_time:{}'.format(cost_time))
+        self.logger.info('load_data finished, cost_time:{}'.format(cost_time))
 
         for listener in self.data_listeners:
             listener.on_data_loaded(self.data_df)
@@ -226,7 +223,7 @@ class DataReader(object):
                                                        index=[self.category_field, self.time_field])
 
                 if pd_is_not_null(added_df):
-                    self.logger.info('entity_id:{},added:\n{}'.format(entity_id, added_df))
+                    self.logger.info(f'got new data:{df.to_json(orient="records", force_ascii=False)}')
 
                     for listener in self.data_listeners:
                         listener.on_entity_data_changed(entity=entity_id, added_data=added_df)
