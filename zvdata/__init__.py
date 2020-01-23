@@ -231,7 +231,12 @@ class Mixin(object):
                 # 1)use FixedCycleDataRecorder to record the data with IntervalLevel
                 # 2)the table of schema with IntervalLevel format is {entity}_{level}_{event}
                 table: str = cls.__tablename__
-                level = IntervalLevel(table.split('_')[1])
+                try:
+                    level = IntervalLevel(table.split('_')[1])
+                except:
+                    # for other schema not with normal format,but need to calculate size for remaining days
+                    level = IntervalLevel.LEVEL_1DAY
+
                 r = recorder_class(exchanges=exchanges, entity_ids=entity_ids, codes=codes, batch_size=batch_size,
                                    force_update=force_update, sleeping_time=sleeping_time, default_size=default_size,
                                    real_time=real_time, fix_duplicate_way=fix_duplicate_way,
