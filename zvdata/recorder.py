@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from zvdata import IntervalLevel, Mixin, EntityMixin
 from zvdata.api import get_entities, get_data
-from zvdata.contract import get_db_session
+from zvdata.contract import get_db_session, get_schema_columns
 from zvdata.utils.time_utils import to_pd_timestamp, TIME_FORMAT_DAY, to_time_str, \
     evaluate_size_from_timestamp, is_in_same_interval
 from zvdata.utils.utils import fill_domain_from_dict
@@ -287,10 +287,17 @@ class TimeSeriesDataRecorder(RecorderForEntities):
             except Exception as e:
                 self.logger.exception(e)
 
-            domain_item = self.data_schema(id=the_id,
-                                           code=entity.code,
-                                           entity_id=entity.id,
-                                           timestamp=timestamp)
+            if 'name' in get_schema_columns(self.data_schema):
+                domain_item = self.data_schema(id=the_id,
+                                               code=entity.code,
+                                               name=entity.name,
+                                               entity_id=entity.id,
+                                               timestamp=timestamp)
+            else:
+                domain_item = self.data_schema(id=the_id,
+                                               code=entity.code,
+                                               entity_id=entity.id,
+                                               timestamp=timestamp)
             got_new_data = True
         else:
             domain_item = items[0]
