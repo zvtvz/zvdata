@@ -208,7 +208,7 @@ class Mixin(object):
                     codes=None,
                     batch_size=10,
                     force_update=False,
-                    sleeping_time=5,
+                    sleeping_time=10,
                     default_size=2000,
                     real_time=False,
                     fix_duplicate_way='add',

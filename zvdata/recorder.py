@@ -67,6 +67,7 @@ class Recorder(metaclass=Meta):
         raise NotImplementedError
 
     def sleep(self):
+        self.logger.info(f'sleeping {self.sleeping_time} seconds')
         time.sleep(self.sleeping_time)
 
 
@@ -342,7 +343,7 @@ class TimeSeriesDataRecorder(RecorderForEntities):
             self.logger.error(e)
 
     def on_finish_entity(self, entity):
-        pass
+        self.sleep()
 
     def run(self):
         finished_items = []
@@ -449,7 +450,6 @@ class TimeSeriesDataRecorder(RecorderForEntities):
                         self.on_finish_entity(entity_item)
                         continue
 
-                    time.sleep(self.sleeping_time)
                 except Exception as e:
                     self.logger.exception(
                         "recording data for entity_id:{},{},error:{}".format(entity_item.id, self.data_schema, e))
