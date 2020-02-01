@@ -206,16 +206,16 @@ class Mixin(object):
                     exchanges=None,
                     entity_ids=None,
                     codes=None,
-                    batch_size=10,
-                    force_update=False,
-                    sleeping_time=10,
-                    default_size=2000,
-                    real_time=False,
-                    fix_duplicate_way='add',
+                    batch_size=None,
+                    force_update=None,
+                    sleeping_time=None,
+                    default_size=None,
+                    real_time=None,
+                    fix_duplicate_way=None,
                     start_timestamp=None,
                     end_timestamp=None,
-                    close_hour=0,
-                    close_minute=0):
+                    close_hour=None,
+                    close_minute=None):
         if cls.provider_map_recorder:
             print(f'{cls.__name__} registered recorders:{cls.provider_map_recorder}')
 
@@ -223,6 +223,21 @@ class Mixin(object):
                 recorder_class = cls.provider_map_recorder[provider]
             else:
                 recorder_class = cls.provider_map_recorder[cls.providers[provider_index]]
+
+            # get args for specific recorder class
+            from zvdata.recorder import TimeSeriesDataRecorder
+            if issubclass(recorder_class, TimeSeriesDataRecorder):
+                args = [item for item in inspect.getfullargspec(cls.record_data).args if
+                        item not in ('cls', 'provider_index', 'provider')]
+            else:
+                args = ['batch_size', 'force_update', 'sleeping_time']
+
+            # just fill the None arg to kw,so we could use the recorder_class default args
+            kw = {}
+            for arg in args:
+                tmp = eval(arg)
+                if tmp is not None:
+                    kw[arg] = tmp
 
             # FixedCycleDataRecorder
             from zvdata.recorder import FixedCycleDataRecorder
@@ -237,31 +252,11 @@ class Mixin(object):
                     # for other schema not with normal format,but need to calculate size for remaining days
                     level = IntervalLevel.LEVEL_1DAY
 
-                r = recorder_class(exchanges=exchanges, entity_ids=entity_ids, codes=codes, batch_size=batch_size,
-                                   force_update=force_update, sleeping_time=sleeping_time, default_size=default_size,
-                                   real_time=real_time, fix_duplicate_way=fix_duplicate_way,
-                                   start_timestamp=start_timestamp, end_timestamp=end_timestamp, close_hour=close_hour,
-                                   close_minute=close_minute, level=level)
+                r = recorder_class(level=level, **kw)
                 r.run()
                 return
-
-            # TimeSeriesDataRecorder
-            from zvdata.recorder import TimeSeriesDataRecorder
-            if issubclass(recorder_class, TimeSeriesDataRecorder):
-                r = recorder_class(exchanges=exchanges, entity_ids=entity_ids, codes=codes, batch_size=batch_size,
-                                   force_update=force_update, sleeping_time=sleeping_time, default_size=default_size,
-                                   real_time=real_time, fix_duplicate_way=fix_duplicate_way,
-                                   start_timestamp=start_timestamp, end_timestamp=end_timestamp, close_hour=close_hour,
-                                   close_minute=close_minute)
-                r.run()
-                return
-
-            # Recorder
-            from zvdata.recorder import Recorder
-            if issubclass(recorder_class, Recorder):
-                r = recorder_class(batch_size=batch_size,
-                                   force_update=force_update,
-                                   sleeping_time=sleeping_time)
+            else:
+                r = recorder_class(**kw)
                 r.run()
                 return
         else:

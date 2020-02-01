@@ -67,8 +67,9 @@ class Recorder(metaclass=Meta):
         raise NotImplementedError
 
     def sleep(self):
-        self.logger.info(f'sleeping {self.sleeping_time} seconds')
-        time.sleep(self.sleeping_time)
+        if self.sleeping_time > 0:
+            self.logger.info(f'sleeping {self.sleeping_time} seconds')
+            time.sleep(self.sleeping_time)
 
 
 class RecorderForEntities(Recorder):
@@ -343,15 +344,18 @@ class TimeSeriesDataRecorder(RecorderForEntities):
             self.logger.error(e)
 
     def on_finish_entity(self, entity):
-        self.sleep()
+        pass
 
     def run(self):
         finished_items = []
         unfinished_items = self.entities
         raising_exception = None
         while True:
-            for entity_item in unfinished_items:
+            count = len(unfinished_items)
+            for index, entity_item in enumerate(unfinished_items):
                 try:
+                    self.logger.info(f'run to {index + 1}/{count}')
+
                     start_timestamp, end_timestamp, size, timestamps = self.evaluate_start_end_size_timestamps(
                         entity_item)
                     size = int(size)
@@ -382,6 +386,10 @@ class TimeSeriesDataRecorder(RecorderForEntities):
                                 start_timestamp))
                         self.on_finish_entity(entity_item)
                         continue
+
+                    # sleep for a while to next entity
+                    if index != 0:
+                        self.sleep()
 
                     original_list = self.record(entity_item, start=start_timestamp, end=end_timestamp, size=size,
                                                 timestamps=timestamps)
