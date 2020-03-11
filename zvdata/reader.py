@@ -97,7 +97,7 @@ class DataReader(object):
         self.entity_ids = entity_ids
 
         # 转换成标准entity_id
-        if not self.entity_ids:
+        if entity_schema and not self.entity_ids:
             df = get_entities(entity_schema=entity_schema, provider=self.entity_provider,
                               exchanges=self.exchanges, codes=self.codes)
             if pd_is_not_null(df):
@@ -205,7 +205,7 @@ class DataReader(object):
                 if entity_id in has_got:
                     continue
 
-                recorded_timestamp = df['timestamp'].max()
+                recorded_timestamp = df.index.levels[1].max()
 
                 # move_on读取数据，表明之前的数据已经处理完毕，只需要保留computing_window的数据
                 if self.computing_window:

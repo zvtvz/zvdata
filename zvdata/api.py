@@ -128,7 +128,7 @@ def get_data(data_schema,
         df = pd.read_sql(query.statement, query.session.bind)
         if pd_is_not_null(df):
             if index:
-                df = index_df(df, drop=False, index=index, time_field=time_field)
+                df = index_df(df, index=index, time_field=time_field)
         return df
     elif return_type == 'domain':
         return query.all()
@@ -188,7 +188,8 @@ def get_entity_code(entity_id: str):
 def df_to_db(df: pd.DataFrame,
              data_schema: DeclarativeMeta,
              provider: str,
-             force_update: bool = False) -> object:
+             force_update: bool = False,
+             sub_size: int = 5000) -> object:
     """
     store the df to db
 
@@ -200,6 +201,7 @@ def df_to_db(df: pd.DataFrame,
     :type provider:
     :param force_update:
     :type force_update:
+    :param sub_size:
     :return:
     :rtype:
     """
@@ -218,7 +220,6 @@ def df_to_db(df: pd.DataFrame,
     df = df[cols]
 
     size = len(df)
-    sub_size = 5000
 
     if size >= sub_size:
         step_size = int(size / sub_size)
