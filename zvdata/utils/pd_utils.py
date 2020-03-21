@@ -8,7 +8,7 @@ def pd_is_not_null(df: Union[pd.DataFrame, pd.Series]):
     return df is not None and not df.empty
 
 
-def index_df(df, index='timestamp', inplace=True, drop=True, time_field='timestamp'):
+def index_df(df, index='timestamp', inplace=True, drop=False, time_field='timestamp'):
     if time_field:
         df[time_field] = pd.to_datetime(df[time_field])
 
